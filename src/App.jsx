@@ -150,8 +150,8 @@ const MENU = [
     cat: "Petite faim",
     note: "1ère sauce offerte, 2e sauce à 0,50€.",
     items: [
-      { id: "pf-hamburger", name: "Hamburger (steak 80g)", price: 5.5, baseIngredients: ["Salade", "Tomates", "Oignons"], sauceIncluded: true },
-      { id: "pf-cheeseburger", name: "Cheeseburger (steak 80g)", price: 6.0, baseIngredients: ["Tomates", "Oignons", "Cheddar"], sauceIncluded: true },
+     { id: "pf-hamburger", name: "Hamburger (steak 80g)", price: 5.5, baseIngredients: ["Salade", "Tomates", "Oignons"], sauceIncluded: true, supplementsAllowed: SUPP_GENERAL },
+      { id: "pf-cheeseburger", name: "Cheeseburger (steak 80g)", price: 6.0, baseIngredients: ["Tomates", "Oignons", "Cheddar"], sauceIncluded: true, supplementsAllowed: SUPP_GENERAL },
       { id: "pf-croc", name: "Croc'délices", price: 4.0, sauceIncluded: true },
       { id: "pf-frites", name: "Frites", price: 4.5, sauceIncluded: true },
       { id: "pf-oignons", name: "Oignons rings", sizes: [{ label: "4 pièces", price: 3.0 }, { label: "6 pièces", price: 4.0 }], sauceIncluded: true },
