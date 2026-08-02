@@ -1,13 +1,14 @@
 {
   "name": "O'Délices",
   "short_name": "O'Délices",
+  "description": "Commande sur place au restaurant O'Délices à Brest",
   "start_url": ".",
   "display": "fullscreen",
   "orientation": "portrait",
   "background_color": "#1c1917",
   "theme_color": "#1c1917",
   "icons": [
-    { "src": "/icon-192.png", "sizes": "192x192", "type": "image/png" },
-    { "src": "/icon-512.png", "sizes": "512x512", "type": "image/png" }
+    { "src": "https://odelices-commande.vercel.app/icon-192.png", "sizes": "192x192", "type": "image/png" },
+    { "src": "https://odelices-commande.vercel.app/icon-512.png", "sizes": "512x512", "type": "image/png" }
   ]
 }
