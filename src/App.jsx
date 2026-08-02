@@ -48,7 +48,7 @@ const MENU = [
     ],
   },
   {
-    cat: "Menu Frites & Boisson",
+cat: "Menu Hamburger",
     note: "Servis avec frites. 1ère sauce incluse, 2e à 0,50€.",
     items: [
       {
@@ -78,6 +78,12 @@ const MENU = [
         supplementsAllowed: SUPP_GENERAL,
         baseIngredients: ["Salade", "Tomates", "Oignons", "Cheddar"],
       },
+    ],
+  },
+  {
+    cat: "Menu Enfant",
+    note: "1ère sauce incluse, 2e à 0,50€.",
+    items: [
       {
         id: "menu-enfant",
         name: "Menu Enfant",
@@ -90,7 +96,7 @@ const MENU = [
     ],
   },
   {
-    cat: "Döner Kebab",
+    cat: "Sandwich",
     note: "1ère sauce incluse, 2e à 0,50€.",
     items: [
       {
