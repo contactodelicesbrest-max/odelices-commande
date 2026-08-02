@@ -687,7 +687,7 @@ function KitchenView() {
         <div className="brand-block">
           <img src={LOGO} alt="O'Délices" className="brand-logo" />
           <div>
-            <p className="eyebrow">Mode cuisine · démo</p>
+            <p className="eyebrow">Mode cuisine</p>
             <h1 className="brand-title">Commandes en cours</h1>
           </div>
         </div>
