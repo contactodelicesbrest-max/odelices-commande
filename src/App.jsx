@@ -514,7 +514,7 @@ function ClientView() {
     return (
       <div className="screen">
         <button className="back-link" onClick={() => setStep("menu")}><ArrowLeft size={16} /> Retour à la carte</button>
-        <h2 className="section-title">Suivre ma commande</h2>
+        <h2 className="section-title">État de la commande</h2>
         <div className="track-row">
           <input className="input" placeholder="Ex. B482" value={trackNum} onChange={(e) => setTrackNum(e.target.value)} />
           <button className="btn-primary" onClick={doTrack}>Chercher</button>
@@ -575,7 +575,7 @@ function ClientView() {
             <h1 className="brand-title">O'Délices</h1>
           </div>
         </div>
-        <button className="track-btn" onClick={() => setStep("track")}><Clock size={16} /> Suivi</button>
+        <button className="track-btn" onClick={() => setStep("track")}><Clock size={16} /> État de la commande</button>
       </header>
 
       {MENU.map((section) => (
