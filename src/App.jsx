@@ -190,7 +190,7 @@ const MENU = [
   {
     cat: "Desserts",
     items: [
-      { id: "baklava", name: "Baklava (1 pièce)", price: 1.0 },
+      { id: "baklava", name: "Baklava", sizes: [{ label: "1 pièce", price: 1.0 }, { label: "4 pièces", price: 2.5 }] },
       { id: "loukoum", name: "Loukoum (4 pièces)", price: 3.0 },
       { id: "brownies", name: "Brownies (1 pièce)", price: 3.0 },
       { id: "tiramisu", name: "Tiramisu", desc: "Choix des parfums à voir avec le personnel au retrait.", price: 4.0 },
