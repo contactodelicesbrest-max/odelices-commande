@@ -143,7 +143,6 @@ const MENU = [
         desc: "6 pièces.",
         sizes: [{ label: "Sans boisson", price: 7.0 }, { label: "Avec boisson", price: 8.0 }],
         sauceIncluded: true,
-        supplementsAllowed: SUPP_GENERAL,
       },
     ],
   },
