@@ -179,8 +179,8 @@ const MENU = [
   {
     cat: "Alcool",
     items: [
-      { id: "efes", name: "Efes (33cl)", price: 4.0 },
-      { id: "heineken", name: "Heineken (33cl)", price: 4.0 },
+    { id: "efes", name: "Efes", sizes: [{ label: "33cl", price: 4.0 }, { label: "50cl", price: 6.0 }] },
+{ id: "heineken", name: "Heineken", sizes: [{ label: "33cl", price: 4.0 }, { label: "50cl", price: 4.0 }] },
       { id: "86", name: "8.6 (33cl)", price: 4.0 },
       { id: "vin-rouge", name: "Vin rouge (75cl)", price: 13.0 },
       { id: "vin-rose", name: "Vin rosé (75cl)", price: 13.0 },
