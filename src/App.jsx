@@ -846,7 +846,7 @@ export default function App() {
       {!locked && (
         <div className="mode-switch">
           <button className={`mode-btn ${mode === "client" ? "mode-active" : ""}`} onClick={() => setMode("client")}>Vue client</button>
-          <button className={`mode-btn ${mode === "kitchen" ? "mode-active" : ""}`} onClick={() => setMode("kitchen")}>Vue cuisine (démo)</button>
+          <button className={`mode-btn ${mode === "kitchen" ? "mode-active" : ""}`} onClick={() => setMode("kitchen")}>Vue cuisine</button>
         </div>
       )}
 
