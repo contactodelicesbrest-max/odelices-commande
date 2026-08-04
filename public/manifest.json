@@ -2,7 +2,7 @@
   "name": "O'Délices",
   "short_name": "O'Délices",
   "description": "Commande sur place au restaurant O'Délices à Brest",
-  "start_url": "/?vue=client",
+ "start_url": "/?vue=cuisine",
   "display": "fullscreen",
   "orientation": "portrait",
   "background_color": "#1c1917",
