@@ -287,15 +287,18 @@ function ProductModal({ item, onClose, onAdd }) {
   );
   const unit = size.price + meatSurcharge + extraSaucePrice + supplementsTotal;
   const total = unit * qty;
-  const canAdd = meatRequired === 0 || meats.length >= meatRequired;
+const canAdd = meatRequired === 0 || meats.length >= meatRequired;
 
- <div className="chip-row">
-              {meatOptions.map((m) => (
-                <button key={m.name} className={`chip ${meats.includes(m.name) ? "chip-active" : ""}`} onClick={() => toggleMeat(m.name)}>
-                  {m.name}{m.extra > 0 ? ` (+${money(m.extra)})` : ""}
-                </button>
-              ))}
-            </div>
+  const meatCount = (name) => meats.filter((m) => m === name).length;
+  const incrMeat = (name) => {
+    if (meats.length < meatCap) setMeats([...meats, name]);
+  };
+  const decrMeat = (name) => {
+    const idx = meats.lastIndexOf(name);
+    if (idx === -1) return;
+    const next = [...meats];
+    next.splice(idx, 1);
+    setMeats(next);
   };
   const toggleSauce = (s) => {
     if (sauces.includes(s)) setSauces(sauces.filter((x) => x !== s));
