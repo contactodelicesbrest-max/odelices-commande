@@ -322,18 +322,18 @@ const canAdd = meatRequired === 0 || meats.length >= meatRequired;
         {item.baseIngredients && (
           <div className="modal-section">
             <span className="modal-label">Ingrédients inclus — clique pour retirer</span>
-            <div className="chip-row">
-              {item.baseIngredients.map((ing) => (
-                <button
-                  key={ing}
-                  className={`chip ${removed.includes(ing) ? "chip-removed" : "chip-active"}`}
-                  onClick={() => toggleIngredient(ing)}
-                >
-                  {removed.includes(ing) ? `Sans ${ing}` : ing}
-                </button>
+   <div className="supp-list">
+              {meatOptions.map((m) => (
+                <div key={m.name} className="supp-row">
+                  <span className="supp-name">{m.name}{m.extra > 0 ? ` (+${money(m.extra)})` : ""}</span>
+                  <div className="qty-control qty-control-sm">
+                    <button onClick={() => decrMeat(m.name)} disabled={!meatCount(m.name)}><Minus size={14} /></button>
+                    <span>{meatCount(m.name)}</span>
+                    <button onClick={() => incrMeat(m.name)} disabled={meats.length >= meatCap}><Plus size={14} /></button>
+                  </div>
+                </div>
               ))}
             </div>
-          </div>
         )}
 
         {sizes.length > 1 && (
