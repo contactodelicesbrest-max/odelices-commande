@@ -289,9 +289,17 @@ function ProductModal({ item, onClose, onAdd }) {
   const total = unit * qty;
   const canAdd = meatRequired === 0 || meats.length >= meatRequired;
 
-  const toggleMeat = (name) => {
-    if (meats.includes(name)) setMeats(meats.filter((m) => m !== name));
-    else if (meats.length < meatCap) setMeats([...meats, name]);
+  const meatCount = (name) => meats.filter((m) => m === name).length;
+  const incrMeat = (name) => {
+    if (meats.length < meatCap) setMeats([...meats, name]);
+  };
+  const decrMeat = (name) => {
+    const idx = meats.lastIndexOf(name);
+    if (idx === -1) return;
+    const next = [...meats];
+    next.splice(idx, 1);
+    setMeats(next);
+  };
   };
   const toggleSauce = (s) => {
     if (sauces.includes(s)) setSauces(sauces.filter((x) => x !== s));
