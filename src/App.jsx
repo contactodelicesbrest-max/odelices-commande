@@ -48,7 +48,7 @@ const MENU = [
     ],
   },
   {
-cat: "Menu Hamburger",
+    cat: "Menu Hamburger",
     note: "Servis avec frites. 1ère sauce incluse, 2e à 0,50€.",
     items: [
       {
@@ -132,18 +132,18 @@ cat: "Menu Hamburger",
         sauceIncluded: true,
         supplementsAllowed: SUPP_GENERAL,
       },
-        {
-  id: "formule-assiette",
-  name: "Formule Assiette",
-  desc: "Au choix : kebab, nuggets, poulet, steak, tenders, cordon bleu ou falafels. Viande supplémentaire : +3,00€.",
-  sizes: [{ label: "Sans boisson", price: 13.5 }, { label: "Avec boisson", price: 15.5 }],
-  meatOptions: MEATS,
-  meatMax: 1,
-  extraMeatPrice: 3.0,
-  breadChoice: { label: "Pain ou galette", options: ["Pain", "Galette"] },
-  sauceIncluded: true,
-  supplementsAllowed: SUPP_GENERAL,
-},
+      {
+        id: "formule-assiette",
+        name: "Formule Assiette",
+        desc: "Au choix : kebab, nuggets, poulet, steak, tenders, cordon bleu ou falafels. Viande supplémentaire : +3,00€.",
+        sizes: [{ label: "Sans boisson", price: 13.5 }, { label: "Avec boisson", price: 15.5 }],
+        meatOptions: MEATS,
+        meatMax: 1,
+        extraMeatPrice: 3.0,
+        breadChoice: { label: "Pain ou galette", options: ["Pain", "Galette"] },
+        sauceIncluded: true,
+        supplementsAllowed: SUPP_GENERAL,
+      },
       {
         id: "formule-nuggets",
         name: "Formule Nuggets",
@@ -157,7 +157,7 @@ cat: "Menu Hamburger",
     cat: "Petite faim",
     note: "1ère sauce offerte, 2e sauce à 0,50€.",
     items: [
-     { id: "pf-hamburger", name: "Hamburger (steak 80g)", price: 5.5, baseIngredients: ["Salade", "Tomates", "Oignons"], sauceIncluded: true, supplementsAllowed: SUPP_GENERAL },
+      { id: "pf-hamburger", name: "Hamburger (steak 80g)", price: 5.5, baseIngredients: ["Salade", "Tomates", "Oignons"], sauceIncluded: true, supplementsAllowed: SUPP_GENERAL },
       { id: "pf-cheeseburger", name: "Cheeseburger (steak 80g)", price: 6.0, baseIngredients: ["Tomates", "Oignons", "Cheddar"], sauceIncluded: true, supplementsAllowed: SUPP_GENERAL },
       { id: "pf-croc", name: "Croc'délices", price: 4.0, sauceIncluded: true },
       { id: "pf-frites", name: "Frites", price: 4.5, sauceIncluded: true },
@@ -186,9 +186,9 @@ cat: "Menu Hamburger",
   {
     cat: "Alcool",
     items: [
-    { id: "efes", name: "Efes", sizes: [{ label: "33cl", price: 4.0 }, { label: "50cl", price: 6.0 }] },
-{ id: "heineken", name: "Heineken", sizes: [{ label: "33cl", price: 4.0 }, { label: "50cl", price: 4.0 }] },
-      { id: "86", name: "8.6 (50cl)", price: 4.0 },
+      { id: "efes", name: "Efes", sizes: [{ label: "33cl", price: 4.0 }, { label: "50cl", price: 6.0 }] },
+      { id: "heineken", name: "Heineken", sizes: [{ label: "33cl", price: 4.0 }, { label: "50cl", price: 4.0 }] },
+      { id: "86", name: "8.6 (33cl)", price: 4.0 },
       { id: "vin-rouge", name: "Vin rouge (75cl)", price: 13.0 },
       { id: "vin-rose", name: "Vin rosé (75cl)", price: 13.0 },
       { id: "pichet", name: "Pichet", sizes: [{ label: "25cl", price: 5.0 }, { label: "50cl", price: 8.0 }], extraChoice: { label: "Vin", options: ["Rosé", "Rouge"] } },
@@ -287,7 +287,7 @@ function ProductModal({ item, onClose, onAdd }) {
   );
   const unit = size.price + meatSurcharge + extraSaucePrice + supplementsTotal;
   const total = unit * qty;
-const canAdd = meatRequired === 0 || meats.length >= meatRequired;
+  const canAdd = meatRequired === 0 || meats.length >= meatRequired;
 
   const meatCount = (name) => meats.filter((m) => m === name).length;
   const incrMeat = (name) => {
@@ -322,18 +322,18 @@ const canAdd = meatRequired === 0 || meats.length >= meatRequired;
         {item.baseIngredients && (
           <div className="modal-section">
             <span className="modal-label">Ingrédients inclus — clique pour retirer</span>
-   <div className="supp-list">
-              {meatOptions.map((m) => (
-                <div key={m.name} className="supp-row">
-                  <span className="supp-name">{m.name}{m.extra > 0 ? ` (+${money(m.extra)})` : ""}</span>
-                  <div className="qty-control qty-control-sm">
-                    <button onClick={() => decrMeat(m.name)} disabled={!meatCount(m.name)}><Minus size={14} /></button>
-                    <span>{meatCount(m.name)}</span>
-                    <button onClick={() => incrMeat(m.name)} disabled={meats.length >= meatCap}><Plus size={14} /></button>
-                  </div>
-                </div>
+            <div className="chip-row">
+              {item.baseIngredients.map((ing) => (
+                <button
+                  key={ing}
+                  className={`chip ${removed.includes(ing) ? "chip-removed" : "chip-active"}`}
+                  onClick={() => toggleIngredient(ing)}
+                >
+                  {removed.includes(ing) ? `Sans ${ing}` : ing}
+                </button>
               ))}
             </div>
+          </div>
         )}
 
         {sizes.length > 1 && (
@@ -356,11 +356,16 @@ const canAdd = meatRequired === 0 || meats.length >= meatRequired;
                 ? `Viande (1 incluse, +${money(extraMeatPrice)} par viande en plus) — ${meats.length} sélectionnée${meats.length > 1 ? "s" : ""}`
                 : `Viande${meatRequired > 1 ? `s (choisis ${meatRequired})` : ""} — ${meats.length}/${meatRequired}`}
             </span>
-            <div className="chip-row">
+            <div className="supp-list">
               {meatOptions.map((m) => (
-                <button key={m.name} className={`chip ${meats.includes(m.name) ? "chip-active" : ""}`} onClick={() => toggleMeat(m.name)}>
-                  {m.name}{m.extra > 0 ? ` (+${money(m.extra)})` : ""}
-                </button>
+                <div key={m.name} className="supp-row">
+                  <span className="supp-name">{m.name}{m.extra > 0 ? ` (+${money(m.extra)})` : ""}</span>
+                  <div className="qty-control qty-control-sm">
+                    <button onClick={() => decrMeat(m.name)} disabled={!meatCount(m.name)}><Minus size={14} /></button>
+                    <span>{meatCount(m.name)}</span>
+                    <button onClick={() => incrMeat(m.name)} disabled={meats.length >= meatCap}><Plus size={14} /></button>
+                  </div>
+                </div>
               ))}
             </div>
           </div>
