@@ -175,7 +175,7 @@ const MENU = [
         id: "formule-assiette",
         name: "Formule Assiette",
         desc: "Au choix : kebab, nuggets, poulet, steak, tenders, cordon bleu ou falafels. Viande supplémentaire : +3,00€.",
-        sizes: [{ label: "Sans boisson", price: 13.5 }, { label: "Avec boisson", price: 15.5 }],
+        sizes: [{ label: "Sans boisson", price: 13.5 }, { label: "Avec boisson", price: 15 }],
         meatOptions: ASSIETTE_MEATS,
         meatMax: 1,
         extraMeatPrice: 3.0,
