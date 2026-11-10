@@ -73,3 +73,39 @@ npm run dev
 ```
 
 Puis ouvre l'adresse affichée dans le terminal (généralement `http://localhost:5173`).
+
+---
+
+# 📋 Appli HACCP (APK Android)
+
+Une deuxième appli, séparée de la prise de commande, pour l'hygiène en cuisine :
+
+| Onglet | Ce qu'on y fait |
+|---|---|
+| **Accueil** | Ce qu'il reste à faire aujourd'hui + les non-conformités (températures hors limites, DLC dépassées, huile à changer, stock bas). |
+| **Températures** | Relevé matin/soir de tous les frigos et congélateurs en une fois. Si une température est hors limites, l'appli **oblige** à noter une action corrective. Historique et mini-graphique par appareil. |
+| **Traçabilité** | « Produit sorti / ouvert » : **photo de l'étiquette**, n° de lot, fournisseur, DLC, date d'ouverture → l'appli calcule la date limite après ouverture (J+1, J+3…) et prévient la veille. Peut déduire automatiquement la quantité du stock. |
+| **Huile** | Pour chaque friteuse : contrôles (% de composés polaires, température, aspect) et changements d'huile. Alerte au-delà de 25 % ou après X jours sans changement. |
+| **Stock** | Produits, quantités, seuil mini, emplacement, DLC. Boutons +/− rapides, livraisons, pertes, inventaire, historique des mouvements, **liste de courses** à partager (WhatsApp, SMS, mail). |
+| **Réglages ⚙️** | Ajouter / renommer les frigos, congélateurs et friteuses (avec leurs seuils), initiales, **rapports PDF** pour le contrôle sanitaire (températures, traçabilité avec photos, huile, stock) et **sauvegarde / restauration**. |
+
+Les données sont enregistrées **sur le téléphone** (fonctionne sans internet). ⚠️ Pense à faire **Réglages → Sauvegarder** régulièrement (et à envoyer le fichier sur ton Drive/mail) : si le téléphone est perdu, les données le sont aussi.
+
+## Récupérer l'APK
+
+L'APK est fabriqué automatiquement par GitHub à chaque modification (onglet **Actions**, ~5 min).
+
+1. Sur le téléphone, va sur la page GitHub du projet → **Releases** → « O'Délices HACCP (dernière version) ».
+2. Télécharge **`odelices-haccp.apk`**, ouvre-le, et autorise « Installer des applis inconnues » quand Android le demande.
+3. Pour mettre à jour : même chose, le nouvel APK s'installe par-dessus **sans effacer les données**.
+
+(Si besoin, l'APK est aussi dans **Actions** → dernier « APK Android HACCP » → *Artifacts*.)
+
+Version web de la même appli (pour tester sur ordinateur) : `https://odelices-commande.vercel.app/haccp/`.
+
+## Développement
+
+```bash
+npm run dev:haccp     # appli HACCP dans le navigateur
+npm run apk:sync      # build + copie dans le projet Android (android/)
+```

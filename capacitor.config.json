@@ -1,0 +1,6 @@
+{
+  "appId": "fr.odelices.haccp",
+  "appName": "O'Délices HACCP",
+  "webDir": "dist-haccp",
+  "android": { "allowMixedContent": false }
+}

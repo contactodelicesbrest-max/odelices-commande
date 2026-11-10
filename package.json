@@ -6,15 +6,25 @@
   "scripts": {
     "dev": "vite",
     "build": "vite build",
-    "preview": "vite preview"
+    "preview": "vite preview",
+    "dev:haccp": "vite -c vite.haccp.config.js",
+    "build:haccp": "vite build -c vite.haccp.config.js",
+    "apk:sync": "npm run build:haccp && npx cap sync android"
   },
   "dependencies": {
-    "firebase": "^10.12.2", "jspdf": "^2.5.2",
+    "@capacitor/android": "^8.6.0",
+    "@capacitor/app": "^8.1.2",
+    "@capacitor/core": "^8.6.0",
+    "@capacitor/filesystem": "^8.1.5",
+    "@capacitor/share": "^8.0.3",
+    "firebase": "^10.12.2",
+    "jspdf": "^2.5.2",
     "lucide-react": "^0.383.0",
     "react": "^18.3.1",
     "react-dom": "^18.3.1"
   },
   "devDependencies": {
+    "@capacitor/cli": "^8.6.0",
     "@vitejs/plugin-react": "^4.3.1",
     "vite": "^5.3.1"
   }
