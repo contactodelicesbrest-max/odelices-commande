@@ -1,9 +1,9 @@
 import { useMemo, useState } from "react";
 import { Sparkles, Check, Plus, Trash2, History } from "lucide-react";
 import { useData } from "./store.jsx";
-import { Sheet, Field, Chips, Badge, Empty } from "./ui.jsx";
+import { Sheet, Field, Chips, Badge, Empty, PhotoInput, PhotoThumb } from "./ui.jsx";
 import { CLEAN_FREQ } from "./db.js";
-import { dayKey, daysSince, fmtDateTime, fmtDayLong, fmtTime, momentOfDay, todayKey } from "./utils.js";
+import { addDays, dayKey, daysSince, daysUntil, fmtDate, fmtDateTime, fmtDayLong, fmtTime, momentOfDay, todayKey } from "./utils.js";
 
 // Une tâche est "à faire" si elle n'a pas été faite dans sa période :
 // après chaque service = ce service (matin / soir), jour = aujourd'hui, semaine = 7 j, mois = 30 j.
@@ -20,6 +20,7 @@ export function taskState(task, logs) {
     (!last ||
       (task.freq === "weekly" && daysSince(last.at) >= 9) ||
       (task.freq === "monthly" && daysSince(last.at) >= 35) ||
+      (["quarterly", "biannual", "yearly"].includes(task.freq) && daysSince(last.at) >= (CLEAN_FREQ[task.freq]?.days || 365) + 14) ||
       ((task.freq === "daily" || task.freq === "service") && daysSince(last.at) >= 2));
   return { last, done, late };
 }
@@ -29,7 +30,8 @@ export default function Nettoyage() {
   const [edit, setEdit] = useState(null);
   const [showHist, setShowHist] = useState(false);
   const tasks = [...data.cleanTasks].sort((a, b) => (a.order ?? 0) - (b.order ?? 0));
-  const states = tasks.map((t) => ({ t, ...taskState(t, data.cleanLogs) }));
+  const states = tasks.filter((t) => !t.hood).map((t) => ({ t, ...taskState(t, data.cleanLogs) }));
+  const hoodTasks = tasks.filter((t) => t.hood);
   const todo = states.filter((s) => !s.done);
   const done = states.filter((s) => s.done);
 
@@ -67,6 +69,7 @@ export default function Nettoyage() {
           <History size={18} />
         </button>
       </div>
+      {hoodTasks.length > 0 && <HoodCard tasks={hoodTasks} onEdit={setEdit} />}
       {!tasks.length && <Empty icon={Sparkles}>Aucune tâche de nettoyage.</Empty>}
       {todo.length > 0 && (
         <>
@@ -166,3 +169,90 @@ function HistorySheet({ onClose }) {
   );
 }
 
+
+// ---------- Planning de la hotte : on note les dates de nettoyage ----------
+function HoodCard({ tasks, onEdit }) {
+  const { data, save, remove } = useData();
+  return (
+    <>
+      <h3 className="section-title">🔥 Hotte</h3>
+      {tasks.map((t) => (
+        <HoodTask key={t.id} task={t} logs={data.cleanLogs.filter((l) => l.taskId === t.id).sort((a, b) => b.at.localeCompare(a.at))} onEdit={onEdit} save={save} remove={remove} operator={data.settings.operator} />
+      ))}
+      <p className="muted small rule">
+        ℹ️ Filtres : à nettoyer régulièrement (graisses = risque d'incendie). Hotte et conduit d'extraction : nettoyage complet par une entreprise spécialisée au moins une fois par an (règlement de sécurité incendie), garder l'attestation.
+      </p>
+    </>
+  );
+}
+
+function HoodTask({ task, logs, onEdit, save, remove, operator }) {
+  const [date, setDate] = useState(todayKey());
+  const [by, setBy] = useState(operator || "");
+  const [comment, setComment] = useState("");
+  const [photoId, setPhotoId] = useState(null);
+  const [showAll, setShowAll] = useState(false);
+  const last = logs[0];
+  const freqDays = CLEAN_FREQ[task.freq]?.days || 30;
+  const next = last ? dayKey(addDays(new Date(last.at), Math.round(freqDays))) : null;
+  const late = !last || daysUntil(next) < 0;
+  const add = async () => {
+    if (!date) return alert("Choisis la date du nettoyage.");
+    const at = new Date(date + "T12:00:00").toISOString();
+    await save("cleanLogs", { taskId: task.id, name: task.name, product: task.product || "", at, by: by.trim(), comment: comment.trim(), photoId });
+    setComment("");
+    setPhotoId(null);
+    setDate(todayKey());
+  };
+  return (
+    <div className={"card pad hood" + (late ? " late" : "")}>
+      <div className="row between">
+        <div className="col">
+          <strong>{task.name}</strong>
+          <span className="muted small">{CLEAN_FREQ[task.freq]?.label}{task.product ? ` · ${task.product}` : ""}</span>
+        </div>
+        <button className="btn btn-sm btn-ghost" onClick={() => onEdit(task)}>Modifier</button>
+      </div>
+      <div className="kv">
+        <span>Dernier nettoyage</span>
+        <strong>{last ? `${fmtDate(last.at)}${last.by ? ` (${last.by})` : ""}` : "jamais noté"}</strong>
+        <span>Prochain prévu</span>
+        <strong className={late ? "ko-text" : "ok-text"}>{next ? `${fmtDate(next)}${daysUntil(next) < 0 ? " — en retard" : ` (dans ${daysUntil(next)} j)`}` : "à faire"}</strong>
+      </div>
+      <div className="grid2">
+        <Field label="Nettoyé le">
+          <input className="input" type="date" value={date} max={todayKey()} onChange={(e) => setDate(e.target.value)} />
+        </Field>
+        <Field label="Par">
+          <input className="input" value={by} onChange={(e) => setBy(e.target.value)} maxLength={20} placeholder="Initiales ou société" />
+        </Field>
+      </div>
+      <input className="input" value={comment} onChange={(e) => setComment(e.target.value)} placeholder="Commentaire (facultatif)" />
+      {task.freq === "yearly" && <PhotoInput photoId={photoId} onChange={setPhotoId} label="Photo de l'attestation (facultatif)" />}
+      <button className="btn btn-primary" onClick={add}>
+        <Check size={18} /> Enregistrer cette date
+      </button>
+      {logs.length > 0 && (
+        <div className="list hood-hist">
+          {(showAll ? logs : logs.slice(0, 4)).map((l) => (
+            <div key={l.id} className="list-row">
+              {l.photoId && <PhotoThumb id={l.photoId} />}
+              <span className="list-main">
+                <strong>{fmtDate(l.at)}</strong>
+                <span className="muted small">{[l.by, l.comment].filter(Boolean).join(" · ")}</span>
+              </span>
+              <button className="icon-btn" aria-label="Supprimer" onClick={() => confirm(`Supprimer le nettoyage du ${fmtDate(l.at)} ?`) && remove("cleanLogs", l.id)}>
+                <Trash2 size={16} />
+              </button>
+            </div>
+          ))}
+          {logs.length > 4 && (
+            <button className="btn btn-sm btn-ghost" onClick={() => setShowAll(!showAll)}>
+              {showAll ? "Voir moins" : `Voir tout l'historique (${logs.length})`}
+            </button>
+          )}
+        </div>
+      )}
+    </div>
+  );
+}

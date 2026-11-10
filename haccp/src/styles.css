@@ -273,3 +273,6 @@ input, select { font: inherit; }
 .ocr-lines[open] { display: flex; flex-direction: column; gap: 8px; }
 .ocr-list { display: flex; flex-wrap: wrap; gap: 6px; }
 .ocr-line { border: 1px solid var(--line); background: #fafaf9; border-radius: 8px; padding: 6px 9px; font-size: 13px; font-family: ui-monospace, monospace; text-align: left; }
+
+.card.hood.late { outline: 2px solid #fca5a5; }
+.hood-hist { border-top: 1px solid var(--line); }

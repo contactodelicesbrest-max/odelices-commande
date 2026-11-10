@@ -31,7 +31,7 @@ export default function ServicePrint({ onClose }) {
       cleanTodo: [...data.cleanTasks]
         .sort((a, b) => (a.order ?? 0) - (b.order ?? 0))
         .map((t) => ({ t, ...taskState(t, data.cleanLogs) }))
-        .filter((x) => !x.done)
+        .filter((x) => !x.done && (!x.t.hood || x.late))
         .map((x) => x.t.name),
     }),
     [data]

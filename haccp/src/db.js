@@ -171,6 +171,17 @@ async function doSeed() {
       await putMany("cleanTasks", DEFAULT_CLEAN_TASKS.map((t, i) => ({ id: uid(), ...t, order: i, createdAt: now, updatedAt: now })));
     await put("settings", { id: "seed-clean", createdAt: now, updatedAt: now });
   }
+  // Planning hotte (ajouté pour les applis déjà installées)
+  if (!(await getOne("settings", "seed-hood"))) {
+    const now = new Date().toISOString();
+    const tasks = await getAll("cleanTasks");
+    const old = tasks.find((t) => /hotte/i.test(t.name));
+    if (old) await put("cleanTasks", { ...old, name: "Hotte : filtres", hood: true, updatedAt: now });
+    else await put("cleanTasks", { id: uid(), name: "Hotte : filtres", freq: "monthly", product: "Dégraissant (trempage ou lave-vaisselle)", hood: true, order: 99, createdAt: now, updatedAt: now });
+    if (!tasks.some((t) => /conduit/i.test(t.name)))
+      await put("cleanTasks", { id: uid(), name: "Hotte + conduit : nettoyage complet (société)", freq: "yearly", product: "Société spécialisée — garder l'attestation", hood: true, order: 100, createdAt: now, updatedAt: now });
+    await put("settings", { id: "seed-hood", createdAt: now, updatedAt: now });
+  }
   const eq = await getAll("equipments");
   const settings = await getOne("settings", "main");
   if (!settings) {
@@ -200,6 +211,9 @@ export const CLEAN_FREQ = {
   daily: { label: "Tous les jours", days: 1 },
   weekly: { label: "Toutes les semaines", days: 7 },
   monthly: { label: "Tous les mois", days: 30 },
+  quarterly: { label: "Tous les 3 mois", days: 91 },
+  biannual: { label: "Tous les 6 mois", days: 182 },
+  yearly: { label: "Tous les ans", days: 365 },
 };
 export const DEFAULT_CLEAN_TASKS = [
   { name: "Plans de travail et planches", freq: "service", product: "Dégraissant + désinfectant alimentaire" },
@@ -213,7 +227,8 @@ export const DEFAULT_CLEAN_TASKS = [
   { name: "Intérieur des frigos", freq: "weekly", product: "Désinfectant alimentaire" },
   { name: "Friteuses (cuve) — à chaque vidange", freq: "weekly", product: "Dégraissant friteuse" },
   { name: "Murs et carrelage cuisine", freq: "weekly", product: "Dégraissant" },
-  { name: "Hotte et filtres", freq: "monthly", product: "Dégraissant" },
+  { name: "Hotte : filtres", freq: "monthly", product: "Dégraissant (trempage ou lave-vaisselle)", hood: true },
+  { name: "Hotte + conduit : nettoyage complet (société)", freq: "yearly", product: "Société spécialisée — garder l'attestation", hood: true },
   { name: "Congélateurs (dégivrage + nettoyage)", freq: "monthly", product: "Désinfectant alimentaire" },
   { name: "Réserve sèche / étagères", freq: "monthly", product: "Désinfectant" },
 ];

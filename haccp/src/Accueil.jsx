@@ -41,7 +41,9 @@ export default function Accueil({ go }) {
   }
   for (const p of data.process.filter((x) => x.state === "done" && x.ok === false && dayKey(x.at) === today))
     alerts.push({ tab: "temps", icon: Timer, text: `${PROCESS[p.kind].label} non conforme : ${p.product}${p.action ? ` — ${p.action}` : ""}` });
-  const cleanTodo = data.cleanTasks.map((t) => ({ t, ...taskState(t, data.cleanLogs) })).filter((x) => !x.done);
+  const cleanTodo = data.cleanTasks.map((t) => ({ t, ...taskState(t, data.cleanLogs) })).filter((x) => !x.done && !x.t.hood);
+  for (const h of data.cleanTasks.filter((t) => t.hood).map((t) => ({ t, ...taskState(t, data.cleanLogs) })).filter((x) => x.late))
+    tasks.push({ tab: "clean", icon: Sparkles, text: `Hotte : ${h.t.name.replace(/^Hotte\s*[:+]?\s*/i, "")} — ${h.last ? "en retard" : "date du dernier nettoyage à noter"}` });
   if (cleanTodo.length)
     tasks.push({ tab: "clean", icon: Sparkles, text: `Nettoyage : ${cleanTodo.length} tâche(s) — ${cleanTodo.slice(0, 3).map((x) => x.t.name).join(", ")}${cleanTodo.length > 3 ? "…" : ""}` });
   for (const t of tempsToday.filter((t) => statusOf(t) !== "ok"))
