@@ -28,10 +28,11 @@ export default function Memo() {
           <li><strong>Cuisson</strong> : +63 °C minimum à cœur (+70 °C conseillé pour le poulet et la viande hachée).</li>
           <li><strong>Refroidissement rapide</strong> : de +63 °C à moins de +10 °C en moins de 2 h.</li>
           <li><strong>Stockage</strong> au frigo à +3 °C maximum, étiqueté avec la date de cuisson : <strong>3 jours maximum</strong> (J+3).</li>
-          <li><strong>Remise en température</strong> : +63 °C à cœur en moins d'1 h, une seule fois. Le reste réchauffé et non servi est jeté.</li>
+          <li><strong>Service</strong> : sortir en saladette (+4 °C max) seulement ce qu'il faut pour le service ; en fin de service, retour au frigo immédiat (si la saladette est restée à +4 °C), sinon jeter.</li>
+          <li><strong>Remise en température</strong> à la commande : +63 °C à cœur (plancha). Ce qui a été réchauffé et non servi est jeté.</li>
           <li><strong>Kebab</strong> : broche cuite au fur et à mesure, trancher la partie cuite (+70 °C conseillé), éviter de remettre au froid une broche entamée (sinon : refroidissement rapide en moins de 2 h).</li>
         </ol>
-        <p className="small muted">Dans l'appli : Accueil → « Cuisson viande » enchaîne automatiquement cuisson → refroidissement → lot en traçabilité (J+3) ; « Réchauffer un lot » clôture le lot.</p>
+        <p className="small muted">Viandes concernées (modifiable dans Réglages) : poulet mariné/curry/paprika, nuggets, cordon bleu, tenders, égrené de bœuf. Dans l'appli : Accueil → « Cuisson viande » enchaîne automatiquement cuisson → refroidissement → lot en traçabilité (J+3) ; « Réchauffer un lot » clôture le lot.</p>
       </div>
 
       <h3 className="section-title">🔥 Cuisson, refroidissement, maintien chaud</h3>

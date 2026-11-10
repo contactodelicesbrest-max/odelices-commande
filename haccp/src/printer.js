@@ -274,6 +274,17 @@ export function buildRecap(data, moment, extra = {}) {
     p.line(row(t.product, d ? `${fmtDate(d).slice(0, 5)}${n === 0 ? " AUJ." : n === 1 ? " DEMAIN" : ""}` : "-"));
   }
 
+  // Lots sortis en saladette pour ce service
+  const sal = data.trace.filter((t) => t.status === "open" && (t.saladette || []).some((e) => dayKey(e.at) === today && e.moment === moment));
+  if (sal.length) {
+    p.rule(width).bold(true).line("EN SALADETTE (+4C MAX)").bold(false);
+    for (const t of sal) {
+      const d = effDlc(t);
+      p.line(row(t.product, d ? fmtDate(d).slice(0, 5) : "-"));
+    }
+    p.line("Fin de service : retour frigo");
+  }
+
   // Refroidissements en cours
   const running = data.process.filter((r) => r.state === "running");
   if (running.length) {

@@ -1,3 +1,4 @@
+import MiseEnPlace from "./MiseEnPlace.jsx";
 import ServicePrint from "./ServicePrint.jsx";
 import { ReceiptText } from "lucide-react";
 import { useEffect, useState } from "react";
@@ -17,6 +18,7 @@ export default function Accueil({ go }) {
   const { data } = useData();
   const [cloud, setCloud] = useState(null);
   const [printOpen, setPrintOpen] = useState(false);
+  const [mep, setMep] = useState(false);
   useEffect(() => onCloudStatus(setCloud), []);
   const today = todayKey();
   const moment = momentOfDay();
@@ -91,6 +93,10 @@ export default function Accueil({ go }) {
           <Flame size={28} />
           <span>Cuisson viande</span>
         </button>
+        <button className="quick-btn q-mep" onClick={() => setMep(true)}>
+          <span style={{ fontSize: 26 }}>🥗</span>
+          <span>Mise en place saladette</span>
+        </button>
         <button className="quick-btn q-reheat" onClick={() => go("temps", "reheat")}>
           <RotateCcw size={28} />
           <span>Réchauffer un lot</span>
@@ -155,6 +161,7 @@ export default function Accueil({ go }) {
         ))}
       </div>
       {printOpen && <ServicePrint onClose={() => setPrintOpen(false)} />}
+      {mep && <MiseEnPlace onClose={() => setMep(false)} />}
     </div>
   );
 }

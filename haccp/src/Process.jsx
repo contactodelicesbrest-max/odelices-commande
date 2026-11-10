@@ -46,10 +46,13 @@ export const PROCESS = {
 };
 
 // Viandes cuites puis conservées au froid (circuit « préparé à l'avance ») — modifiable dans Réglages.
-export const DEFAULT_COLD_MEATS = ["Poulet mariné", "Poulet curry", "Poulet paprika", "Égrené de bœuf"];
+export const DEFAULT_COLD_MEATS = ["Poulet mariné", "Poulet curry", "Poulet paprika", "Nuggets", "Cordon bleu", "Tenders", "Égrené de bœuf"];
+const OLD_DEFAULT = "Poulet mariné, Poulet curry, Poulet paprika, Égrené de bœuf";
 export const KEBAB = "Kebab (broche)";
 export const coldMeats = (settings) =>
-  settings?.coldMeats ? settings.coldMeats.split(",").map((x) => x.trim()).filter(Boolean) : DEFAULT_COLD_MEATS;
+  settings?.coldMeats && settings.coldMeats.trim() !== OLD_DEFAULT
+    ? settings.coldMeats.split(",").map((x) => x.trim()).filter(Boolean)
+    : DEFAULT_COLD_MEATS;
 const isColdMeat = (settings, name) => coldMeats(settings).some((m) => m.toLowerCase() === (name || "").trim().toLowerCase());
 
 export const minutesBetween = (a, b) => Math.round((new Date(b) - new Date(a)) / 60000);
