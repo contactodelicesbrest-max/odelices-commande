@@ -2,6 +2,7 @@ import { useMemo, useState } from "react";
 import { ClipboardCheck, Plus, Trash2, CheckCircle2, Search, Printer } from "lucide-react";
 import { isPrintAvailable, printLabelsSafe } from "./printer.js";
 import ServicePrint from "./ServicePrint.jsx";
+import SauceForm from "./Sauce.jsx";
 import { useData } from "./store.jsx";
 import { Sheet, Field, Chips, Badge, Empty, PhotoInput, PhotoThumb } from "./ui.jsx";
 import { addDays, dayKey, daysUntil, fmtDate, fmtDayLong, fmtTime, fmtDateTime, toLocalInput, todayKey, parseNum, fmtNum } from "./utils.js";
@@ -58,6 +59,7 @@ export default function Tracabilite({ intent }) {
   const [q, setQ] = useState("");
   const [status, setStatus] = useState(null);
   const [printOpen, setPrintOpen] = useState(false);
+  const [sauce, setSauce] = useState(intent === "sauce");
 
   const list = useMemo(() => [...data.trace].sort((a, b) => b.at.localeCompare(a.at)), [data.trace]);
   const watch = list.filter((t) => t.status === "open" && effectiveDlc(t) && daysUntil(effectiveDlc(t)) <= 1);
@@ -84,10 +86,16 @@ export default function Tracabilite({ intent }) {
           <div className="hero-title">Traçabilité du jour</div>
           <div className="hero-sub">{todayCount} produit(s) enregistré(s) aujourd'hui</div>
         </div>
-        <button className="btn btn-primary" onClick={() => setEdit({})}>
-          <Plus size={20} /> Produit sorti
-        </button>
+        <div className="col gap-s">
+          <button className="btn btn-primary" onClick={() => setEdit({})}>
+            <Plus size={20} /> Produit sorti
+          </button>
+          <button className="btn btn-sm btn-ghost" onClick={() => setSauce(true)}>
+            🥣 Sauce maison
+          </button>
+        </div>
       </div>
+      {sauce && <SauceForm onClose={() => setSauce(false)} />}
 
       <button className="btn btn-ghost" onClick={() => setPrintOpen(true)}>
         <Printer size={18} /> Récap / étiquettes du service
@@ -351,6 +359,18 @@ function TraceForm({ initial, onClose }) {
           <input type="checkbox" checked={doPrint} onChange={(e) => setDoPrint(e.target.checked)} />
           <Printer size={18} /> Imprimer l'étiquette DLC
         </label>
+      )}
+      {initial.ingredients?.length > 0 && (
+        <div className="card pad">
+          <span className="field-label">Ingrédients (traçabilité)</span>
+          {initial.ingredients.map((i, k) => (
+            <div key={k} className="small">
+              <strong>{i.name}</strong>
+              {i.lot && ` · lot ${i.lot}`}
+              {i.dlc && ` · DLC ${fmtDate(i.dlc)}`}
+            </div>
+          ))}
+        </div>
       )}
       {!isNew && <p className="muted small">Créé le {fmtDateTime(initial.createdAt)}</p>}
     </Sheet>

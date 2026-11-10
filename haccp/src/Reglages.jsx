@@ -1,6 +1,7 @@
 import { useEffect, useRef, useState } from "react";
 import { onCloudStatus, restoreFromCloud, syncNow } from "./cloud.js";
 import { coldMeats } from "./Process.jsx";
+import { RecipesCard } from "./Sauce.jsx";
 import { CHARSETS, charsetOf, isPrintAvailable, listPrinters, printCharsetTest, printTest } from "./printer.js";
 import { Plus, Trash2, FileDown, Upload, Download, Thermometer, Droplets, Pencil, ArrowUp, ArrowDown, Cloud, CloudDownload, RefreshCw } from "lucide-react";
 import { useData } from "./store.jsx";
@@ -92,6 +93,9 @@ export default function Reglages({ go }) {
           <input className="input" defaultValue={coldMeats(s).join(", ")} onBlur={(e) => updateSettings({ coldMeats: e.target.value })} />
         </Field>
       </div>
+
+      <h3 className="section-title">Recettes maison (sauces…)</h3>
+      <RecipesCard settings={s} updateSettings={updateSettings} />
 
       <h3 className="section-title">Imprimante d'étiquettes DLC (Bluetooth)</h3>
       <PrinterCard settings={s} updateSettings={updateSettings} />

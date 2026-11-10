@@ -95,6 +95,10 @@ export default function Accueil({ go }) {
           <RotateCcw size={28} />
           <span>Réchauffer un lot</span>
         </button>
+        <button className="quick-btn q-sauce" onClick={() => go("trace", "sauce")}>
+          <span style={{ fontSize: 26 }}>🥣</span>
+          <span>Sauce maison</span>
+        </button>
         <button className="quick-btn q-oil" onClick={() => go("oil")}>
           <Droplets size={28} />
           <span>Huile</span>

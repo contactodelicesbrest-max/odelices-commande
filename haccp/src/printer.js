@@ -125,6 +125,10 @@ export function buildLabel(t, settings, escpos) {
   p.line(`${(KIND_TITLE[t.kind || "open"] || "LE").padEnd(13)}: ${fmtDate(t.at)} ${fmtTime(t.at)}`);
   if (t.dlc) p.line(`${(t.dlcType === "DDM" ? "DDM origine" : "DLC origine").padEnd(13)}: ${fmtDate(t.dlc)}`);
   if (t.lot) p.line(`${"Lot".padEnd(13)}: ${t.lot}`);
+  if (t.ingredients?.length) {
+    p.line("Ingredients :");
+    for (const i of t.ingredients) p.line(`- ${i.name}${i.lot ? " L." + i.lot : ""}${i.dlc ? " " + fmtDate(i.dlc).slice(0, 5) : ""}`);
+  }
   if (t.supplier) p.line(`${"Fournisseur".padEnd(13)}: ${t.supplier}`);
   if (t.by) p.line(`${"Par".padEnd(13)}: ${t.by}`);
   p.rule(width).align("center");
