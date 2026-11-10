@@ -233,7 +233,12 @@ function StockForm({ initial, onClose, onMove }) {
           <button className="btn btn-ghost btn-block" onClick={() => onMove("loss")}><Trash2 size={18} /> Perte</button>
         </div>
       )}
-      <LabelPhoto photoId={f.photoId} onChange={set("photoId")} onRead={onRead} />
+      <LabelPhoto
+        photoId={f.photoId}
+        onChange={set("photoId")}
+        onRead={onRead}
+        onPick={(field, text) => setF((s) => ({ ...s, [field === "product" ? "name" : field]: text }))}
+      />
       <Field label="Nom *">
         <input
           className="input"
@@ -359,6 +364,8 @@ function MoveForm({ item, kind: initialKind, onClose }) {
               if (r.lot && !lot) setLot(r.lot);
               if (r.quantity && !qty && r.quantity.unit === item.unit) setQty(String(r.quantity.qty).replace(".", ","));
             }}
+            onPick={(_, text) => setLot(text)}
+            pickFields={["lot"]}
           />
           <div className="grid2">
             <Field label="N° de lot">

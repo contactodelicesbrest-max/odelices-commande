@@ -4,6 +4,7 @@ import { useData } from "./store.jsx";
 import { Sheet, Field, Chips, PhotoInput } from "./ui.jsx";
 import { addDays, dayKey, daysUntil, fmtDate, toLocalInput } from "./utils.js";
 import { isPrintAvailable, printLabelsSafe } from "./printer.js";
+import { effectiveDlc } from "./traceRules.js";
 
 // Recettes maison par défaut (modifiables dans Réglages → Recettes maison).
 // Sans étude de durée de vie : 3 jours maximum après la fabrication, à +3 °C.
@@ -51,7 +52,7 @@ export default function SauceForm({ onClose }) {
 
   // Produits ouverts / préparations en cours : on peut y piocher le lot et la DLC
   const openItems = useMemo(
-    () => data.trace.filter((t) => t.status === "open").sort((a, b) => a.product.localeCompare(b.product)),
+    () => data.trace.filter((t) => t.status === "open" && t.kind !== "frozen").sort((a, b) => a.product.localeCompare(b.product)),
     [data.trace]
   );
 
@@ -138,7 +139,7 @@ export default function SauceForm({ onClose }) {
               value={i.traceId}
               onChange={(e) => {
                 const t = openItems.find((x) => x.id === e.target.value);
-                setIng(i.key, t ? { traceId: t.id, lot: t.lot || "", dlc: [t.dlcType === "DDM" ? null : t.dlc, t.dlcAfter].filter(Boolean).sort()[0] || "" } : { traceId: "" });
+                setIng(i.key, t ? { traceId: t.id, lot: t.lot || "", dlc: effectiveDlc(t) || "" } : { traceId: "" });
               }}
             >
               <option value="">— Produit ouvert (traçabilité) —</option>

@@ -2,6 +2,7 @@
 // (imprimante ticket thermique 58/80 mm, langage ESC/POS — ex. imprimante Uber Eats).
 import { Capacitor, registerPlugin } from "@capacitor/core";
 import { dayKey, daysUntil, fmtDate, fmtNum, fmtTime, momentOfDay, todayKey } from "./utils.js";
+import { effectiveDlc, frozenInTime } from "./traceRules.js";
 
 const BtPrinter = registerPlugin("BtPrinter");
 
@@ -107,13 +108,13 @@ class Escpos {
   bytes() { return new Uint8Array(this.b); }
 }
 
-const KIND_TITLE = { open: "OUVERT LE", homemade: "FABRIQUE LE", thawed: "DECONGELE LE" };
+const KIND_TITLE = { open: "OUVERT LE", homemade: "FABRIQUE LE", thawed: "DECONGELE LE", frozen: "CONGELE LE" };
 
 // Une étiquette DLC (produit de la traçabilité)
 export function buildLabel(t, settings, escpos) {
   const width = Number(settings.printerWidth) === 80 ? 48 : 32;
   const p = escpos;
-  const dlc = [t.dlcType === "DDM" ? null : t.dlc, t.dlcAfter].filter(Boolean).sort()[0];
+  const dlc = effectiveDlc(t);
   p.align("center").bold(true).line((settings.shopName || "O'Délices").toUpperCase()).bold(false);
   p.rule(width);
   // Nom du produit en grand (2x), coupé proprement si trop long
@@ -123,7 +124,8 @@ export function buildLabel(t, settings, escpos) {
   p.size(1, 1).bold(false);
   p.rule(width).align("left");
   p.line(`${(KIND_TITLE[t.kind || "open"] || "LE").padEnd(13)}: ${fmtDate(t.at)} ${fmtTime(t.at)}`);
-  if (t.dlc) p.line(`${(t.dlcType === "DDM" ? "DDM origine" : "DLC origine").padEnd(13)}: ${fmtDate(t.dlc)}`);
+  if (t.kind === "thawed" && t.frozenAt) p.line(`${"Congele le".padEnd(13)}: ${fmtDate(t.frozenAt)}`);
+  if (t.dlc && !frozenInTime(t)) p.line(`${(t.dlcType === "DDM" ? "DDM origine" : "DLC origine").padEnd(13)}: ${fmtDate(t.dlc)}`);
   if (t.lot) p.line(`${"Lot".padEnd(13)}: ${t.lot}`);
   if (t.ingredients?.length) {
     p.line("Ingredients :");
@@ -133,12 +135,13 @@ export function buildLabel(t, settings, escpos) {
   if (t.by) p.line(`${"Par".padEnd(13)}: ${t.by}`);
   p.rule(width).align("center");
   if (dlc) {
-    p.line("A CONSOMMER AVANT LE");
+    p.line(t.kind === "frozen" ? "A UTILISER AVANT LE" : "A CONSOMMER AVANT LE");
     p.size(2, 2).bold(true).line(fmtDate(dlc)).size(1, 1).bold(false);
   } else {
     p.line("Pas de date limite calculée");
   }
   if (t.kind === "thawed") p.line("NE PAS RECONGELER");
+  if (t.kind === "frozen") p.line("CONSERVER A -18 C");
   p.nl(3).cut();
   return p;
 }
@@ -213,7 +216,7 @@ export async function printLabelsSafe(traces, settings, copies) {
 }
 
 // ---------- Récap du service (matin / soir) ----------
-const effDlc = (t) => [t.dlcType === "DDM" ? null : t.dlc, t.dlcAfter].filter(Boolean).sort()[0] || null;
+const effDlc = effectiveDlc;
 
 // Produits de la traçabilité enregistrés pendant ce service (aujourd'hui, même moment).
 export function serviceTraces(trace, moment = momentOfDay()) {
@@ -256,7 +259,7 @@ export function buildRecap(data, moment, extra = {}) {
 
   // Produits en cours (frigo) triés par date limite
   const open = data.trace
-    .filter((t) => t.status === "open")
+    .filter((t) => t.status === "open" && t.kind !== "frozen")
     .map((t) => ({ t, d: effDlc(t) }))
     .sort((a, b) => (a.d || "9999").localeCompare(b.d || "9999"));
   const toThrow = open.filter((x) => x.d && daysUntil(x.d) < 0);

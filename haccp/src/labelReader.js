@@ -54,11 +54,53 @@ function datesIn(line) {
 
 const DLC_KEYS = /(a|à)\s*consommer\s*jusqu|\bdlc\b|use\s*by|verbrauchen\s*bis|consumir\s*hasta|da\s*consumarsi\s*entro|\bexp\b|\bexpiry\b/i;
 const DDM_KEYS = /(a|à)\s*consommer\s*de\s*pr[ée]f[ée]rence|\bddm\b|\bdluo\b|best\s*before|\bbbe?\b|mindestens\s*haltbar|preferentemente/i;
-const LOT_RE = [
-  /(?:n[°o]\s*(?:de\s*)?lot|lot\s*n[°o]?|\blot\b|\bbatch\b|\blote\b|\bcharge\b)\s*[:.\-]?\s*([A-Z0-9][A-Z0-9\-/.]{1,20})/i,
-  /(?:^|\s)L\s?[:.]\s?([A-Z0-9][A-Z0-9\-/.]{2,20})/,
-  /(?:^|\s)(L\d[A-Z0-9\-]{3,20})\b/,
+// Mot « LOT » tolérant aux erreurs de lecture (L0T, 1OT, LO7…), « N° de lot », « Batch »…
+const LOT_KW = /(?:n\s?[°oº"]?\s*(?:de\s*)?[l1I|][o0Q][t7T]\b|[l1I|][o0Q][t7T]\s*n\s?[°oº]|\b[l1I|][o0Q][t7T]s?\b|\bbatch\b|\blote\b|\bcharge\b)/i;
+const LOT_VAL = /[A-Z0-9][A-Z0-9\-/.]{1,24}/gi;
+// Premier « mot » qui ressemble à un numéro de lot parmi les 3 premiers
+const firstLot = (txt) => (txt.match(LOT_VAL) || []).slice(0, 3).find((v) => okLot(v.replace(/[.\-/]+$/, "")));
+const LOT_FALLBACK = [
+  /(?:^|\s)L\s?[:.]\s?([A-Z0-9][A-Z0-9\-/.]{2,24})/,
+  /(?:^|\s)(L\d[A-Z0-9\-]{3,24})\b/,
+  /(?:^|\s)L\s(\d{4,}[A-Z0-9]*)\b/,
 ];
+const BAD_LOT = /^(de|du|des|no|n|dlc|ddm|date|exp|best|before|a|à|le|la|batch|lot|number|nr)$/i;
+const okLot = (v) => v && /\d/.test(v) && !BAD_LOT.test(v) && v.length >= 3;
+
+function findLot(lines) {
+  // 1) « LOT … » avec la valeur sur la même ligne
+  for (const l of lines) {
+    const m = l.text.match(LOT_KW);
+    if (!m) continue;
+    const after = l.text.slice(m.index + m[0].length).replace(/^[\s:.\-#n°º]*/i, "");
+    const v = firstLot(after);
+    if (v) return v.replace(/[.\-/]+$/, "");
+    // 2) Valeur sur la ligne à côté (même hauteur, à droite) ou juste en dessous
+    if (l.height) {
+      const near = lines
+        .filter((o) => o !== l)
+        .map((o) => {
+          const sameRow = Math.abs(o.top - l.top) < l.height * 0.8 && o.left > l.left;
+          const below = o.top > l.top && o.top - l.top < l.height * 2.8 && Math.abs(o.left - l.left) < l.height * 8;
+          return { o, score: sameRow ? o.left - l.left : below ? 10000 + (o.top - l.top) : Infinity };
+        })
+        .filter((x) => x.score < Infinity)
+        .sort((a, b) => a.score - b.score);
+      for (const { o } of near) {
+        const v2 = firstLot(o.text);
+        if (v2) return v2.replace(/[.\-/]+$/, "");
+      }
+    }
+  }
+  // 3) Formes courtes : « L: 2311A », « L23110 », « L 23110 »
+  for (const l of lines)
+    for (const re of LOT_FALLBACK) {
+      const v = l.text.match(re)?.[1];
+      if (okLot(v)) return v.replace(/[.\-/]+$/, "");
+    }
+  return "";
+}
+
 const STAMP_RE = /\b(FR|ES|DE|IT|BE|NL|PL|PT|IE|DK|AT)\s?[-.]?\s?(\d{2,3}[.\s]?\d{3}[.\s]?\d{3})\s?[-.]?\s?(CE|EC|EG|EU)\b/i;
 const NOISE = /ingr[ée]dient|poids|net|kcal|kj|valeur|nutrition|conserver|temp[ée]rature|fabriqu|emball|www\.|http|tel|t[ée]l[ée]phone|adresse|lot|dlc|ddm|consommer|pr[ée]f[ée]rence|code|ean|prix|€|\d{4,}|^[\d\s.,:/\-%]+$|^e?\s?\d+\s?(g|kg|ml|l|cl)$/i;
 
@@ -87,17 +129,10 @@ export function parseLabel(text, lines = []) {
   }
 
   // --- Numéro de lot
-  for (const l of ls) {
-    for (const re of LOT_RE) {
-      const m = l.match(re);
-      if (m && m[1] && !/^(de|du|n°|no)$/i.test(m[1])) {
-        result.lot = m[1].replace(/[.\-/]+$/, "");
-        break;
-      }
-    }
-    if (result.lot) break;
-  }
+  const geo = lines.length ? lines.map((l) => ({ ...l, text: l.text.trim() })) : ls.map((t, i) => ({ text: t, top: i * 10, left: 0, height: 0 }));
+  result.lot = findLot(geo);
   if (result.lot) result.found.push("lot");
+  result.lines = ls;
 
   // --- Estampille sanitaire (ex : FR 29.019.001 CE)
   const st = text.replace(/\n/g, " ").match(STAMP_RE);

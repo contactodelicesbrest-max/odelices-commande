@@ -27,12 +27,18 @@ export const TRACE_KINDS = {
     days: 3,
     rule: "Sauces, marinades, préparations faites sur place : 3 jours maximum après le jour de fabrication (sans étude de durée de vie), conservées à +3 °C.",
   },
+  frozen: {
+    label: "Congélation",
+    days: 90,
+    rule: "Congeler uniquement un produit frais AVANT sa DLC (idéalement le jour de la réception), en portions, emballé et étiqueté (nom, lot, date de congélation), au congélateur à -18 °C. Conseil : 3 mois maximum. Une fois congelé à temps, la DLC d'origine ne compte plus.",
+  },
   thawed: {
     label: "Décongélation",
     days: 3,
-    rule: "Décongeler au réfrigérateur (jamais à température ambiante). À consommer sous 3 jours maximum. Ne JAMAIS recongeler un produit décongelé.",
+    rule: "Décongeler au réfrigérateur (jamais à température ambiante). À consommer sous 3 jours maximum après la mise en décongélation. Ne JAMAIS recongeler un produit décongelé. Si le produit a été congelé avant sa DLC, la DLC d'origine ne compte plus.",
   },
 };
+
 
 export function dlcTone(d) {
   if (!d) return "neutral";
@@ -46,14 +52,12 @@ export function dlcLabel(d) {
   const n = daysUntil(d);
   if (n < 0) return `DLC dépassée (${fmtDate(d)})`;
   if (n === 0) return "À consommer aujourd'hui";
+  if (n > 20) return `Jusqu'au ${fmtDate(d)}`;
   if (n === 1) return "À consommer demain";
   return `Jusqu'au ${fmtDate(d)}`;
 }
-// La date limite effective est la plus proche entre la DLC fabricant et la DLC après ouverture.
-export const effectiveDlc = (t) => {
-  const ds = [t.dlcType === "DDM" ? null : t.dlc, t.dlcAfter].filter(Boolean).sort();
-  return ds[0] || null;
-};
+export { frozenInTime, effectiveDlc } from "./traceRules.js";
+import { frozenInTime, effectiveDlc } from "./traceRules.js";
 
 export default function Tracabilite({ intent }) {
   const { data, save } = useData();
@@ -235,7 +239,20 @@ function TraceForm({ initial, onClose }) {
     }));
   };
   const [doPrint, setDoPrint] = useState(isNew && canPrint && !!data.settings.printerAuto);
-  const dlcExpired = f.dlc && f.dlcType === "DLC" && daysUntil(f.dlc) < 0;
+  const frozenAtVal = f.kind === "frozen" ? f.atLocal : f.kind === "thawed" ? f.frozenAt : "";
+  const okFrozen = !!frozenAtVal && (!f.dlc || dayKey(frozenAtVal) <= f.dlc);
+  const frozenTooLate = !!frozenAtVal && f.dlc && f.dlcType === "DLC" && dayKey(frozenAtVal) > f.dlc;
+  const dlcExpired = f.dlc && f.dlcType === "DLC" && daysUntil(f.dlc) < 0 && !okFrozen;
+  // Lots congelés disponibles pour une décongélation
+  const frozenLots = data.trace.filter((t) => t.kind === "frozen" && t.status === "open").sort((a, b) => a.at.localeCompare(b.at));
+  const pickFrozen = (id) => {
+    const t = frozenLots.find((x) => x.id === id);
+    setF((s) => ({
+      ...s,
+      frozenId: id,
+      ...(t ? { product: t.product, lot: t.lot || "", dlc: t.dlc || "", dlcType: t.dlcType || "DLC", supplier: t.supplier || "", photoId: s.photoId || t.photoId || null, frozenAt: dayKey(t.at) } : {}),
+    }));
+  };
   const ddmExpired = f.dlc && f.dlcType === "DDM" && daysUntil(f.dlc) < 0;
 
   const submit = async () => {
@@ -244,6 +261,9 @@ function TraceForm({ initial, onClose }) {
     const { atLocal, stockQty, ...rest } = f;
     const rec = { ...rest, product: f.product.trim(), at: new Date(atLocal).toISOString(), dlcAfter };
     // DLC dépassée : le produit ne peut pas être utilisé (il doit être retiré et jeté).
+    if (isNew && frozenTooLate) {
+      return alert("Congelé APRÈS la DLC : ce n'est pas autorisé. Le produit ne peut pas être utilisé.");
+    }
     if (isNew && dlcExpired) {
       if (!confirm("DLC dépassée : ce produit est INTERDIT à l'utilisation.\n\nL'enregistrer comme JETÉ ?")) return;
       rec.status = "thrown";
@@ -265,6 +285,11 @@ function TraceForm({ initial, onClose }) {
         by: f.by,
       });
       rec.stockQty = dq;
+    }
+    // Décongélation d'un lot congelé : le lot congelé est clôturé
+    if (isNew && f.kind === "thawed" && f.frozenId) {
+      const fl = frozenLots.find((x) => x.id === f.frozenId);
+      if (fl && f.thawAll !== false) await save("trace", { ...fl, status: "used", closedAt: rec.at, comment: [fl.comment, "Décongelé"].filter(Boolean).join(" — ") });
     }
     const saved = await save("trace", rec);
     onClose();
@@ -307,7 +332,19 @@ function TraceForm({ initial, onClose }) {
         onChange={(v) => v && setF((s) => ({ ...s, kind: v, keepDays: TRACE_KINDS[v].days }))}
       />
       <div className="alert info">ℹ️ {kind.rule}</div>
-      {isNew && f.kind !== "homemade" && data.stock.length > 0 && (
+      {isNew && f.kind === "thawed" && frozenLots.length > 0 && (
+        <Field label="Lot congelé à décongeler">
+          <select className="input" value={f.frozenId || ""} onChange={(e) => pickFrozen(e.target.value)}>
+            <option value="">— Choisir un lot congelé —</option>
+            {frozenLots.map((t) => (
+              <option key={t.id} value={t.id}>
+                {t.product} — congelé le {fmtDate(t.at)}{t.lot ? ` · lot ${t.lot}` : ""}
+              </option>
+            ))}
+          </select>
+        </Field>
+      )}
+      {isNew && f.kind !== "homemade" && !(f.kind === "thawed" && f.frozenId) && data.stock.length > 0 && (
         <Field label="Prendre dans le stock (remplit tout automatiquement)">
           <select className="input" value={f.stockId} onChange={(e) => pickStock(e.target.value)}>
             <option value="">— Nouveau produit (photo) —</option>
@@ -323,6 +360,7 @@ function TraceForm({ initial, onClose }) {
         photoId={f.photoId}
         onChange={set("photoId")}
         onRead={onRead}
+        onPick={(field, text) => setF((s) => ({ ...s, [field]: text }))}
         read={f.kind !== "homemade"}
         label={f.kind === "homemade" ? "Photo (facultatif)" : "Photo de l'étiquette"}
       />
@@ -358,23 +396,38 @@ function TraceForm({ initial, onClose }) {
           <input className="input" value={f.qty} onChange={set("qty")} placeholder="ex : 2 kg, 1 seau" />
         </Field>
       </div>
+      {f.kind === "thawed" && !f.frozenId && (
+        <Field label="Congelé le (date de congélation)" hint="Si le produit a été congelé avant sa DLC, la DLC d'origine ne compte plus.">
+          <input className="input" type="date" value={f.frozenAt || ""} onChange={set("frozenAt")} />
+        </Field>
+      )}
+      {frozenTooLate && <div className="alert ko">Congelé après la DLC : interdit, le produit ne peut pas être utilisé.</div>}
+      {okFrozen && f.dlc && f.dlcType === "DLC" && daysUntil(f.dlc) < 0 && (
+        <div className="alert ok">Congelé avant la DLC ({fmtDate(f.dlc)}) : la DLC d'origine ne compte plus. Date limite = durée ci-dessous.</div>
+      )}
       {dlcExpired && <div className="alert ko">DLC dépassée : produit interdit à l'utilisation, à retirer et jeter.</div>}
       {ddmExpired && <div className="alert warn">DDM dépassée : le produit reste consommable si l'emballage est intact et l'aspect normal (qualité moindre).</div>}
-      <Field label={{ open: "Ouvert le", homemade: "Fabriqué le", thawed: "Mis à décongeler le" }[f.kind] || "Date"}>
+      <Field label={{ open: "Ouvert le", homemade: "Fabriqué le", thawed: "Mis à décongeler le", frozen: "Congelé le" }[f.kind] || "Date"}>
         <input className="input" type="datetime-local" value={f.atLocal} onChange={set("atLocal")} />
       </Field>
       <Field
         label="Durée de conservation"
         hint={
           dlcAfter
-            ? `À consommer avant le ${fmtDate(f.dlc && f.dlcType === "DLC" && f.dlc < dlcAfter ? f.dlc : dlcAfter)}${f.dlc && f.dlcType === "DLC" && f.dlc < dlcAfter ? " (DLC d'origine plus courte)" : ""}`
+            ? f.kind === "frozen"
+              ? `À utiliser avant le ${fmtDate(dlcAfter)} (au congélateur)`
+              : `À consommer avant le ${fmtDate(!okFrozen && f.dlc && f.dlcType === "DLC" && f.dlc < dlcAfter ? f.dlc : dlcAfter)}${!okFrozen && f.dlc && f.dlcType === "DLC" && f.dlc < dlcAfter ? " (DLC d'origine plus courte)" : ""}`
             : "Pas de DLC secondaire"
         }
       >
         <Chips
-          options={[...new Set([1, 2, 3, 5, 7, ...(advice?.days ? [advice.days] : [])])]
-            .sort((x, y) => x - y)
-            .map((n) => ({ value: n, label: `J+${n}${advice?.days === n ? " ★" : ""}` }))}
+          options={
+            f.kind === "frozen"
+              ? [{ value: 30, label: "1 mois" }, { value: 60, label: "2 mois" }, { value: 90, label: "3 mois ★" }, { value: 180, label: "6 mois" }]
+              : [...new Set([1, 2, 3, 5, 7, ...(advice?.days ? [advice.days] : [])])]
+                  .sort((x, y) => x - y)
+                  .map((n) => ({ value: n, label: `J+${n}${advice?.days === n ? " ★" : ""}` }))
+          }
           value={Number(f.keepDays) || null}
           onChange={(v) => {
             setKeepTouched(true);
@@ -388,7 +441,7 @@ function TraceForm({ initial, onClose }) {
           {advice.days ? `${advice.days} jour(s) maximum après ouverture` : "pas de limite après ouverture, suivre la date du fabricant"}. {advice.text}
         </div>
       )}
-      {Number(f.keepDays) > 3 && f.kind !== "open" && (
+      {Number(f.keepDays) > 3 && (f.kind === "homemade" || f.kind === "thawed") && (
         <div className="alert warn">Plus de 3 jours : seulement si une étude de durée de vie ou le fabricant le permet.</div>
       )}
       {isNew && stockItem && (
