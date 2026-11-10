@@ -1,6 +1,6 @@
 import { useEffect, useState } from "react";
 import { onCloudStatus } from "./cloud.js";
-import { Thermometer, ClipboardCheck, Droplets, Package, AlertTriangle, CheckCircle2, Camera, Sparkles, BookOpen, Timer, Truck } from "lucide-react";
+import { Thermometer, ClipboardCheck, Droplets, Package, AlertTriangle, CheckCircle2, Camera, Sparkles, BookOpen, Timer, Truck, Flame, RotateCcw } from "lucide-react";
 import { pendingRechecks, statusOf } from "./Temperatures.jsx";
 import { PROCESS, minutesBetween } from "./Process.jsx";
 import { taskState } from "./Nettoyage.jsx";
@@ -83,6 +83,14 @@ export default function Accueil({ go }) {
         <button className="quick-btn q-trace" onClick={() => go("trace", "new")}>
           <Camera size={28} />
           <span>Produit sorti</span>
+        </button>
+        <button className="quick-btn q-cook" onClick={() => go("temps", "cook")}>
+          <Flame size={28} />
+          <span>Cuisson viande</span>
+        </button>
+        <button className="quick-btn q-reheat" onClick={() => go("temps", "reheat")}>
+          <RotateCcw size={28} />
+          <span>Réchauffer un lot</span>
         </button>
         <button className="quick-btn q-oil" onClick={() => go("oil")}>
           <Droplets size={28} />

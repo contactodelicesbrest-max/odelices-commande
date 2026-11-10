@@ -2,7 +2,7 @@ import { useEffect, useMemo, useState } from "react";
 import { Flame, Snowflake, RotateCcw, ThermometerSun, CheckCircle2, Trash2, Timer } from "lucide-react";
 import { useData } from "./store.jsx";
 import { Sheet, Field, Chips, Badge, Empty, TempInput } from "./ui.jsx";
-import { fmtDateTime, fmtNum, fmtTime, parseNum, toLocalInput } from "./utils.js";
+import { addDays, dayKey, daysUntil, fmtDate, fmtDateTime, fmtNum, fmtTime, parseNum, toLocalInput } from "./utils.js";
 
 // Règles (arrêté du 21/12/2009 annexe IV, GBPH restauration) :
 // - Refroidissement : passer de +63 °C à +10 °C à cœur en moins de 2 h, puis stocker à +3 °C max.
@@ -15,7 +15,7 @@ export const PROCESS = {
     icon: Snowflake,
     twoStep: true,
     maxMinutes: 120,
-    rule: "Passer de +63 °C à moins de +10 °C à cœur en moins de 2 h (cellule de refroidissement), puis stocker à +3 °C maximum. Produit à consommer sous 3 jours.",
+    rule: "Passer de +63 °C à moins de +10 °C à cœur en moins de 2 h (cellule de refroidissement, ou petites quantités en bacs peu profonds), puis stocker à +3 °C maximum. À consommer sous 3 jours (J+3).",
     check: (r) => r.endTemp <= 10 && r.minutes <= 120,
     fail: ["Produit jeté", "Produit consommé immédiatement (servi chaud)"],
   },
@@ -24,7 +24,7 @@ export const PROCESS = {
     icon: RotateCcw,
     twoStep: true,
     maxMinutes: 60,
-    rule: "Atteindre +63 °C à cœur en moins d'1 h. Ne réchauffer qu'une seule fois.",
+    rule: "Atteindre +63 °C à cœur en moins d'1 h. Ne réchauffer qu'une seule fois : ce qui a été réchauffé et pas servi est jeté (jamais remis au froid). Ne réchauffer que la quantité nécessaire au service.",
     check: (r) => r.endTemp >= 63 && r.minutes <= 60,
     fail: ["Réchauffage prolongé jusqu'à +63 °C", "Produit jeté"],
   },
@@ -38,11 +38,18 @@ export const PROCESS = {
   cook: {
     label: "Cuisson à cœur",
     icon: Flame,
-    rule: "+63 °C minimum à cœur. Conseillé : +70 °C pour volailles, viandes hachées, broche kebab (tranches).",
+    rule: "+63 °C minimum à cœur. Conseillé : +70 °C pour volailles, viandes hachées et tranches de kebab (trancher seulement la partie cuite de la broche).",
     check: (r) => r.endTemp >= (r.target || 63),
     fail: ["Cuisson prolongée jusqu'à la bonne température", "Produit jeté"],
   },
 };
+
+// Viandes cuites puis conservées au froid (circuit « préparé à l'avance ») — modifiable dans Réglages.
+export const DEFAULT_COLD_MEATS = ["Poulet mariné", "Poulet curry", "Poulet paprika", "Égrené de bœuf"];
+export const KEBAB = "Kebab (broche)";
+export const coldMeats = (settings) =>
+  settings?.coldMeats ? settings.coldMeats.split(",").map((x) => x.trim()).filter(Boolean) : DEFAULT_COLD_MEATS;
+const isColdMeat = (settings, name) => coldMeats(settings).some((m) => m.toLowerCase() === (name || "").trim().toLowerCase());
 
 export const minutesBetween = (a, b) => Math.round((new Date(b) - new Date(a)) / 60000);
 
@@ -50,9 +57,9 @@ export function runningProcesses(list) {
   return list.filter((r) => r.state === "running");
 }
 
-export default function Process() {
+export default function Process({ intent }) {
   const { data, remove } = useData();
-  const [form, setForm] = useState(null);
+  const [form, setForm] = useState(intent && PROCESS[intent] ? { kind: intent } : null);
   const [detail, setDetail] = useState(null);
   const [, tick] = useState(0);
   useEffect(() => {
@@ -177,7 +184,20 @@ function ProcessForm({ kind, initial, onClose }) {
   const minutes = p.twoStep ? minutesBetween(new Date(f.startLocal), new Date(f.endLocal)) : null;
   const rec = { endTemp, minutes, target: Number(f.target) };
   const ok = Number.isFinite(endTemp) ? p.check(rec) : null;
-  const names = [...new Set(data.process.map((r) => r.product))].sort();
+  const meats = coldMeats(data.settings);
+  const presets = kind === "cook" || kind === "hot" ? [...meats, KEBAB] : meats;
+  const names = [...new Set([...presets, ...data.process.map((r) => r.product)])].sort();
+  const cold = isColdMeat(data.settings, f.product);
+  const [thenCool, setThenCool] = useState(true);
+  const [makeLabel, setMakeLabel] = useState(true);
+  // Lots de viande cuite au froid (traçabilité « préparation maison » en cours)
+  const lots = data.trace
+    .filter((t) => t.kind === "homemade" && t.status === "open")
+    .sort((a, b) => (b.at || "").localeCompare(a.at || ""));
+  const [lotId, setLotId] = useState(initial?.traceId || "");
+  const lot = lots.find((t) => t.id === lotId) || data.trace.find((t) => t.id === lotId);
+  const lotExpired = lot && lot.dlcAfter && daysUntil(lot.dlcAfter) < 0;
+  const [usedAll, setUsedAll] = useState(true);
 
   const base = () => ({
     ...(initial || {}),
@@ -190,15 +210,16 @@ function ProcessForm({ kind, initial, onClose }) {
   const start = async () => {
     if (!f.product.trim()) return alert("Indique le produit.");
     if (!Number.isFinite(startTemp)) return alert("Indique la température de départ.");
-    await save("process", { ...base(), state: "running", startAt: new Date(f.startLocal).toISOString(), startTemp, at: new Date(f.startLocal).toISOString() });
+    await save("process", { ...base(), traceId: kind === "reheat" ? lotId || undefined : undefined, state: "running", startAt: new Date(f.startLocal).toISOString(), startTemp, at: new Date(f.startLocal).toISOString() });
     onClose();
   };
   const finish = async () => {
     if (!f.product.trim()) return alert("Indique le produit.");
+    if (kind === "reheat" && lotExpired) return alert("Ce lot a dépassé sa date limite (J+3) : il doit être jeté, pas réchauffé.");
     if (!Number.isFinite(endTemp)) return alert("Indique la température mesurée.");
     if (p.twoStep && !Number.isFinite(startTemp)) return alert("Indique la température de départ.");
     if (!ok && !f.action) return alert("Produit non conforme : choisis une action corrective.");
-    await save("process", {
+    const rec = {
       ...base(),
       state: "done",
       startAt: p.twoStep ? new Date(f.startLocal).toISOString() : undefined,
@@ -209,7 +230,33 @@ function ProcessForm({ kind, initial, onClose }) {
       target: kind === "cook" ? Number(f.target) : undefined,
       ok,
       action: ok ? "" : f.action,
-    });
+      traceId: kind === "reheat" ? lotId || undefined : initial?.traceId,
+    };
+    const at = rec.at;
+    // Refroidissement conforme -> étiquette de traçabilité J+3 (préparation maison)
+    if (kind === "cooling" && ok && makeLabel && !initial?.traceId) {
+      const t = await save("trace", {
+        kind: "homemade",
+        product: rec.product,
+        at,
+        keepDays: 3,
+        dlcAfter: dayKey(addDays(new Date(at), 3)),
+        dlcType: "DLC",
+        status: "open",
+        by: rec.by,
+        comment: `Cuit puis refroidi (${fmtNum(rec.startTemp)} → ${fmtNum(endTemp)} °C en ${minutes} min)`,
+      });
+      rec.traceId = t.id;
+    }
+    const saved = await save("process", rec);
+    // Cuisson d'une viande conservée au froid -> démarre le refroidissement
+    if (kind === "cook" && ok && cold && thenCool) {
+      await save("process", { kind: "cooling", product: rec.product, by: rec.by, state: "running", startAt: at, startTemp: endTemp, at, cookId: saved.id });
+    }
+    // Réchauffage de tout le lot -> lot clôturé dans la traçabilité
+    if (kind === "reheat" && lot && usedAll) {
+      await save("trace", { ...lot, status: "used", closedAt: at, comment: [lot.comment, "Réchauffé pour le service"].filter(Boolean).join(" — ") });
+    }
     onClose();
   };
 
@@ -231,10 +278,35 @@ function ProcessForm({ kind, initial, onClose }) {
       }
     >
       <div className="alert info">ℹ️ {p.rule}</div>
+      {kind === "reheat" && !finishing && (
+        <Field label="Lot de viande à réchauffer (frigo)">
+          <select
+            className="input"
+            value={lotId}
+            onChange={(e) => {
+              setLotId(e.target.value);
+              const l = lots.find((t) => t.id === e.target.value);
+              if (l) set("product")(l.product);
+            }}
+          >
+            <option value="">— Choisir un lot —</option>
+            {lots.map((l) => (
+              <option key={l.id} value={l.id}>
+                {l.product} — cuit le {fmtDate(l.at)}{l.dlcAfter ? `, limite ${fmtDate(l.dlcAfter)}` : ""}
+              </option>
+            ))}
+          </select>
+        </Field>
+      )}
+      {lotExpired && <div className="alert ko">Lot périmé (limite {fmtDate(lot.dlcAfter)}) : à jeter, ne pas réchauffer.</div>}
       <Field label="Produit *">
-        <input className="input" list="process-names" value={f.product} onChange={set("product")} placeholder="ex : Poulet curry, Sauce blanche…" />
+        <Chips options={presets} value={f.product} onChange={(v) => set("product")(v || "")} />
+        <input className="input" list="process-names" value={f.product} onChange={set("product")} placeholder="ou tape un autre produit" />
         <datalist id="process-names">{names.map((n) => <option key={n} value={n} />)}</datalist>
       </Field>
+      {kind === "cook" && f.product === KEBAB && (
+        <div className="alert info">Kebab : mesurer la température à cœur des tranches coupées (+70 °C conseillé). Ne trancher que la partie bien cuite ; éviter de remettre au froid une broche entamée (sinon : refroidissement rapide en moins de 2 h).</div>
+      )}
       {kind === "cook" && (
         <Field label="Température à cœur visée">
           <Chips options={[{ value: 63, label: "+63 °C (minimum)" }, { value: 70, label: "+70 °C (volaille, haché)" }]} value={Number(f.target)} onChange={(v) => v && set("target")(v)} />
@@ -263,6 +335,24 @@ function ProcessForm({ kind, initial, onClose }) {
           {ok ? "✓ Conforme" : "✗ NON conforme"}
           {p.twoStep && Number.isFinite(minutes) && ` — ${minutes} min (max ${p.maxMinutes} min)`}
         </div>
+      )}
+      {kind === "cook" && cold && (
+        <label className="check">
+          <input type="checkbox" checked={thenCool} onChange={(e) => setThenCool(e.target.checked)} />
+          Mettre au froid ensuite : démarrer le refroidissement rapide (+10 °C en moins de 2 h)
+        </label>
+      )}
+      {kind === "cooling" && !initial?.traceId && (
+        <label className="check">
+          <input type="checkbox" checked={makeLabel} onChange={(e) => setMakeLabel(e.target.checked)} />
+          Créer le lot dans la traçabilité (à consommer avant J+3)
+        </label>
+      )}
+      {kind === "reheat" && lot && (
+        <label className="check">
+          <input type="checkbox" checked={usedAll} onChange={(e) => setUsedAll(e.target.checked)} />
+          Tout le lot a été réchauffé (le lot sera clôturé)
+        </label>
       )}
       {ok === false && (
         <Field label="Action corrective *">

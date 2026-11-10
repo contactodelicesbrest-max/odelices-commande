@@ -1,5 +1,6 @@
 import { useEffect, useRef, useState } from "react";
 import { onCloudStatus, restoreFromCloud, syncNow } from "./cloud.js";
+import { coldMeats } from "./Process.jsx";
 import { Plus, Trash2, FileDown, Upload, Download, Thermometer, Droplets, Pencil, ArrowUp, ArrowDown, Cloud, CloudDownload, RefreshCw } from "lucide-react";
 import { useData } from "./store.jsx";
 import { Sheet, Field, Chips } from "./ui.jsx";
@@ -81,6 +82,13 @@ export default function Reglages({ go }) {
         </Field>
         <Field label="Initiales de l'opérateur (pré-remplies dans les formulaires)">
           <input className="input" defaultValue={s.operator} maxLength={12} onBlur={(e) => updateSettings({ operator: e.target.value.trim() })} />
+        </Field>
+      </div>
+
+      <h3 className="section-title">Viandes cuites puis conservées au froid</h3>
+      <div className="card pad">
+        <Field label="Liste (séparée par des virgules)" hint="Ces viandes suivent le circuit : cuisson → refroidissement rapide → frigo (+3 °C, J+3) → remise en température. Le kebab est traité à part (broche).">
+          <input className="input" defaultValue={coldMeats(s).join(", ")} onBlur={(e) => updateSettings({ coldMeats: e.target.value })} />
         </Field>
       </div>
 

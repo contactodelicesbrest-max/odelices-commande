@@ -22,6 +22,18 @@ export default function Memo() {
         <p className="small muted">Relevé au moins 2 fois par jour (ouverture et fermeture). Toute anomalie = action corrective notée + recontrôle dans l'heure. Source : arrêté du 21 décembre 2009, annexe I.</p>
       </div>
 
+      <h3 className="section-title">🍗 Tes viandes cuites à l'avance</h3>
+      <div className="card pad">
+        <ol>
+          <li><strong>Cuisson</strong> : +63 °C minimum à cœur (+70 °C conseillé pour le poulet et la viande hachée).</li>
+          <li><strong>Refroidissement rapide</strong> : de +63 °C à moins de +10 °C en moins de 2 h.</li>
+          <li><strong>Stockage</strong> au frigo à +3 °C maximum, étiqueté avec la date de cuisson : <strong>3 jours maximum</strong> (J+3).</li>
+          <li><strong>Remise en température</strong> : +63 °C à cœur en moins d'1 h, une seule fois. Le reste réchauffé et non servi est jeté.</li>
+          <li><strong>Kebab</strong> : broche cuite au fur et à mesure, trancher la partie cuite (+70 °C conseillé), éviter de remettre au froid une broche entamée (sinon : refroidissement rapide en moins de 2 h).</li>
+        </ol>
+        <p className="small muted">Dans l'appli : Accueil → « Cuisson viande » enchaîne automatiquement cuisson → refroidissement → lot en traçabilité (J+3) ; « Réchauffer un lot » clôture le lot.</p>
+      </div>
+
       <h3 className="section-title">🔥 Cuisson, refroidissement, maintien chaud</h3>
       <div className="card pad">
         <ul>

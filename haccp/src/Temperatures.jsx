@@ -101,7 +101,7 @@ export default function Temperatures({ intent }) {
         })}
       </div>
 
-      <Process />
+      <Process intent={intent === "new" ? null : intent} />
 
       <h3 className="section-title">Historique des relevés</h3>
       <Chips
