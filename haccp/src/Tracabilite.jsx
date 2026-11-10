@@ -1,5 +1,7 @@
 import { useMemo, useState } from "react";
-import { ClipboardCheck, Plus, Trash2, CheckCircle2, Search } from "lucide-react";
+import { ClipboardCheck, Plus, Trash2, CheckCircle2, Search, Printer } from "lucide-react";
+import { isPrintAvailable, printLabelsSafe } from "./printer.js";
+import ServicePrint from "./ServicePrint.jsx";
 import { useData } from "./store.jsx";
 import { Sheet, Field, Chips, Badge, Empty, PhotoInput, PhotoThumb } from "./ui.jsx";
 import { addDays, dayKey, daysUntil, fmtDate, fmtDayLong, fmtTime, fmtDateTime, toLocalInput, todayKey, parseNum, fmtNum } from "./utils.js";
@@ -55,6 +57,7 @@ export default function Tracabilite({ intent }) {
   const [edit, setEdit] = useState(intent === "new" ? {} : null);
   const [q, setQ] = useState("");
   const [status, setStatus] = useState(null);
+  const [printOpen, setPrintOpen] = useState(false);
 
   const list = useMemo(() => [...data.trace].sort((a, b) => b.at.localeCompare(a.at)), [data.trace]);
   const watch = list.filter((t) => t.status === "open" && effectiveDlc(t) && daysUntil(effectiveDlc(t)) <= 1);
@@ -86,6 +89,10 @@ export default function Tracabilite({ intent }) {
         </button>
       </div>
 
+      <button className="btn btn-ghost" onClick={() => setPrintOpen(true)}>
+        <Printer size={18} /> Récap / étiquettes du service
+      </button>
+      {printOpen && <ServicePrint onClose={() => setPrintOpen(false)} />}
       {watch.length > 0 && (
         <>
           <h3 className="section-title">⚠️ À surveiller</h3>
@@ -179,6 +186,8 @@ function TraceForm({ initial, onClose }) {
   );
 
   const kind = TRACE_KINDS[f.kind] || TRACE_KINDS.open;
+  const canPrint = isPrintAvailable() && !!data.settings.printerAddress;
+  const [doPrint, setDoPrint] = useState(isNew && canPrint && !!data.settings.printerAuto);
   const dlcExpired = f.dlc && f.dlcType === "DLC" && daysUntil(f.dlc) < 0;
   const ddmExpired = f.dlc && f.dlcType === "DDM" && daysUntil(f.dlc) < 0;
 
@@ -210,8 +219,9 @@ function TraceForm({ initial, onClose }) {
       });
       rec.stockQty = dq;
     }
-    await save("trace", rec);
+    const saved = await save("trace", rec);
     onClose();
+    if (doPrint && saved.status !== "thrown") printLabelsSafe([saved], data.settings);
   };
 
   return (
@@ -231,6 +241,11 @@ function TraceForm({ initial, onClose }) {
               }}
             >
               <Trash2 size={18} />
+            </button>
+          )}
+          {!isNew && canPrint && (
+            <button className="btn btn-ghost" onClick={() => printLabelsSafe([{ ...initial }], data.settings)} aria-label="Imprimer l'étiquette">
+              <Printer size={20} />
             </button>
           )}
           <button className="btn btn-primary btn-block" onClick={submit}>
@@ -331,6 +346,12 @@ function TraceForm({ initial, onClose }) {
           <input className="input" value={f.comment} onChange={set("comment")} />
         </Field>
       </div>
+      {isNew && canPrint && (
+        <label className="check">
+          <input type="checkbox" checked={doPrint} onChange={(e) => setDoPrint(e.target.checked)} />
+          <Printer size={18} /> Imprimer l'étiquette DLC
+        </label>
+      )}
       {!isNew && <p className="muted small">Créé le {fmtDateTime(initial.createdAt)}</p>}
     </Sheet>
   );

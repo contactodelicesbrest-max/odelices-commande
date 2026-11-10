@@ -258,3 +258,8 @@ input, select { font: inherit; }
 
 .q-cook { background: #fee2e2; color: #991b1b; }
 .q-reheat { background: #fef3c7; color: #92400e; }
+
+.list-row.selected { background: var(--ok-bg); }
+
+.q-print { background: #e0e7ff; color: #3730a3; }
+.ticket { background: #fff; border: 1px dashed #d6d3d1; border-radius: 8px; padding: 10px; font-family: ui-monospace, Menlo, Consolas, monospace; font-size: 11px; line-height: 1.35; white-space: pre; overflow-x: auto; margin: 0; max-height: 320px; overflow-y: auto; }

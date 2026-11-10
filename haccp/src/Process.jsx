@@ -1,6 +1,7 @@
 import { useEffect, useMemo, useState } from "react";
 import { Flame, Snowflake, RotateCcw, ThermometerSun, CheckCircle2, Trash2, Timer } from "lucide-react";
 import { useData } from "./store.jsx";
+import { isPrintAvailable, printLabelsSafe } from "./printer.js";
 import { Sheet, Field, Chips, Badge, Empty, TempInput } from "./ui.jsx";
 import { addDays, dayKey, daysUntil, fmtDate, fmtDateTime, fmtNum, fmtTime, parseNum, toLocalInput } from "./utils.js";
 
@@ -247,6 +248,7 @@ function ProcessForm({ kind, initial, onClose }) {
         comment: `Cuit puis refroidi (${fmtNum(rec.startTemp)} → ${fmtNum(endTemp)} °C en ${minutes} min)`,
       });
       rec.traceId = t.id;
+      if (isPrintAvailable() && data.settings.printerAddress && data.settings.printerAuto) printLabelsSafe([t], data.settings);
     }
     const saved = await save("process", rec);
     // Cuisson d'une viande conservée au froid -> démarre le refroidissement

@@ -1,3 +1,5 @@
+import ServicePrint from "./ServicePrint.jsx";
+import { ReceiptText } from "lucide-react";
 import { useEffect, useState } from "react";
 import { onCloudStatus } from "./cloud.js";
 import { Thermometer, ClipboardCheck, Droplets, Package, AlertTriangle, CheckCircle2, Camera, Sparkles, BookOpen, Timer, Truck, Flame, RotateCcw } from "lucide-react";
@@ -14,6 +16,7 @@ import { daysUntil } from "./utils.js";
 export default function Accueil({ go }) {
   const { data } = useData();
   const [cloud, setCloud] = useState(null);
+  const [printOpen, setPrintOpen] = useState(false);
   useEffect(() => onCloudStatus(setCloud), []);
   const today = todayKey();
   const moment = momentOfDay();
@@ -104,6 +107,10 @@ export default function Accueil({ go }) {
           <Sparkles size={28} />
           <span>Nettoyage</span>
         </button>
+        <button className="quick-btn q-print" onClick={() => setPrintOpen(true)}>
+          <ReceiptText size={28} />
+          <span>Récap / étiquettes du service</span>
+        </button>
         <button className="quick-btn q-memo" onClick={() => go("memo")}>
           <BookOpen size={28} />
           <span>Mémo HACCP</span>
@@ -143,6 +150,7 @@ export default function Accueil({ go }) {
           </button>
         ))}
       </div>
+      {printOpen && <ServicePrint onClose={() => setPrintOpen(false)} />}
     </div>
   );
 }

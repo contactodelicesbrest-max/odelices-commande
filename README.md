@@ -110,6 +110,15 @@ Dans **console.firebase.google.com** → projet `odelices-brest` → **Realtime 
 
 Puis **Publier**. (Ces règles sont ouvertes : n'importe qui ayant l'adresse de la base pourrait lire les données. On pourra ajouter une connexion par mot de passe plus tard si besoin.)
 
+## Impression des étiquettes DLC (imprimante Bluetooth)
+
+L'appli imprime sur une imprimante de tickets thermique Bluetooth (58 ou 80 mm, langage ESC/POS, comme l'imprimante Uber Eats) :
+- **étiquette DLC** de chaque produit (nom en grand, ouvert/fabriqué/décongelé le, lot, « à consommer avant le » en grand) — automatique à l'enregistrement si l'option est cochée, ou avec le bouton 🖨️ d'un produit ;
+- **récap du service** (matin ou soir) : températures, huile, produits en cours triés par date limite, produits à jeter, refroidissements en cours, nettoyage à faire ;
+- toutes les **étiquettes du service** d'un coup.
+
+Mise en route : appairer l'imprimante dans les paramètres Bluetooth d'Android, puis **Réglages → Imprimante d'étiquettes → Choisir**, et « Imprimer une étiquette test ». Une imprimante Bluetooth n'accepte souvent qu'un seul appareil connecté : si la tablette Uber Eats y est connectée en même temps, l'impression peut échouer.
+
 ## Récupérer l'APK
 
 L'APK est fabriqué automatiquement par GitHub à chaque modification (onglet **Actions**, ~5 min).

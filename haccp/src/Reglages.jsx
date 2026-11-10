@@ -1,6 +1,7 @@
 import { useEffect, useRef, useState } from "react";
 import { onCloudStatus, restoreFromCloud, syncNow } from "./cloud.js";
 import { coldMeats } from "./Process.jsx";
+import { isPrintAvailable, listPrinters, printTest } from "./printer.js";
 import { Plus, Trash2, FileDown, Upload, Download, Thermometer, Droplets, Pencil, ArrowUp, ArrowDown, Cloud, CloudDownload, RefreshCw } from "lucide-react";
 import { useData } from "./store.jsx";
 import { Sheet, Field, Chips } from "./ui.jsx";
@@ -91,6 +92,9 @@ export default function Reglages({ go }) {
           <input className="input" defaultValue={coldMeats(s).join(", ")} onBlur={(e) => updateSettings({ coldMeats: e.target.value })} />
         </Field>
       </div>
+
+      <h3 className="section-title">Imprimante d'étiquettes DLC (Bluetooth)</h3>
+      <PrinterCard settings={s} updateSettings={updateSettings} />
 
       <h3 className="section-title">Frigos & congélateurs</h3>
       <div className="card list">
@@ -334,6 +338,85 @@ function CloudCard({ onRestored }) {
           <CloudDownload size={18} /> {busy ? "Récupération…" : "Récupérer"}
         </button>
       </div>
+    </div>
+  );
+}
+
+function PrinterCard({ settings, updateSettings }) {
+  const [devices, setDevices] = useState(null);
+  const [busy, setBusy] = useState(false);
+  const native = isPrintAvailable();
+  const search = async () => {
+    setBusy(true);
+    try {
+      setDevices(await listPrinters());
+    } catch (e) {
+      alert(e.message);
+    } finally {
+      setBusy(false);
+    }
+  };
+  const test = async () => {
+    setBusy(true);
+    try {
+      await printTest(settings);
+    } catch (e) {
+      alert(e.message);
+    } finally {
+      setBusy(false);
+    }
+  };
+  return (
+    <div className="card pad">
+      {!native && <div className="alert warn">L'impression Bluetooth fonctionne uniquement dans l'appli Android (APK).</div>}
+      <p className="muted small">
+        1. Allume l'imprimante et appaire-la dans les paramètres Bluetooth d'Android (code souvent 0000 ou 1234).
+        2. Choisis-la ci-dessous. Elle ne peut être connectée qu'à un appareil à la fois : si la tablette Uber Eats est connectée, l'impression peut échouer.
+      </p>
+      <div className="row gap">
+        <div className="col list-main">
+          <strong>{settings.printerName || "Aucune imprimante choisie"}</strong>
+          {settings.printerAddress && <span className="muted small">{settings.printerAddress}</span>}
+        </div>
+        <button className="btn btn-ghost" disabled={busy || !native} onClick={search}>Choisir</button>
+      </div>
+      {devices && (
+        <div className="list">
+          {!devices.length && <p className="muted small">Aucun appareil appairé. Appaire d'abord l'imprimante dans les paramètres Bluetooth.</p>}
+          {devices.map((d) => (
+            <button
+              key={d.address}
+              className={"list-row" + (d.address === settings.printerAddress ? " selected" : "")}
+              onClick={() => {
+                updateSettings({ printerAddress: d.address, printerName: d.name });
+                setDevices(null);
+              }}
+            >
+              <span className="list-main">
+                <strong>{d.name}</strong>
+                <span className="muted small">{d.address}</span>
+              </span>
+            </button>
+          ))}
+        </div>
+      )}
+      <Field label="Largeur du papier">
+        <Chips options={[{ value: 58, label: "58 mm" }, { value: 80, label: "80 mm" }]} value={Number(settings.printerWidth) || 58} onChange={(v) => v && updateSettings({ printerWidth: v })} />
+      </Field>
+      <Field label="Nombre d'étiquettes par produit">
+        <Chips options={[1, 2, 3]} value={Number(settings.printerCopies) || 1} onChange={(v) => v && updateSettings({ printerCopies: v })} />
+      </Field>
+      <label className="check">
+        <input type="checkbox" checked={settings.printerAccents !== false} onChange={(e) => updateSettings({ printerAccents: e.target.checked })} />
+        Accents (décocher si l'imprimante affiche des caractères bizarres)
+      </label>
+      <label className="check">
+        <input type="checkbox" checked={!!settings.printerAuto} onChange={(e) => updateSettings({ printerAuto: e.target.checked })} />
+        Imprimer automatiquement l'étiquette à chaque produit enregistré
+      </label>
+      <button className="btn btn-primary" disabled={busy || !native || !settings.printerAddress} onClick={test}>
+        {busy ? "…" : "Imprimer une étiquette test"}
+      </button>
     </div>
   );
 }
