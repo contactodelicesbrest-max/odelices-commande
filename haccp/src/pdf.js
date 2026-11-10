@@ -271,38 +271,6 @@ export async function pdfProcess(data, from, to) {
   return finish(ctx.doc, shop);
 }
 
-export async function pdfReceptions(data, from, to) {
-  const shop = data.settings.shopName || "O'Délices";
-  const ctx = makeDoc("Contrôles à réception des marchandises", period(from, to), shop);
-  const dec = { accepted: "Acceptée", partial: "Réserves", refused: "REFUSÉE" };
-  const rows = [];
-  for (const r of data.receptions.filter((t) => inPeriod(t.at, from, to)).sort(sortAt))
-    for (const l of r.lines || []) rows.push({ r, l });
-  const checks = (r) => {
-    const bad = Object.entries(r.checks || {}).filter(([, v]) => !v).map(([k]) => ({ vehicle: "véhicule", packaging: "emballage", labels: "étiquetage", dlc: "DLC" }[k]));
-    return bad.length ? `NC : ${bad.join(", ")}` : "OK";
-  };
-  await table(
-    ctx,
-    [
-      { title: "BL", w: 20, img: ({ r, l }) => (r.lines[0] === l ? loadPhoto(r.photoId) : null) },
-      { title: "Date", w: 22, get: ({ r }) => `${fmtDate(r.at)} ${fmtTime(r.at)}` },
-      { title: "Fournisseur", w: 28, get: ({ r }) => r.supplier },
-      { title: "Produit", w: 35, get: ({ l }) => `${l.name}${l.qty ? ` (${fmtNum(l.qty, 2)} ${l.unit})` : ""}` },
-      { title: "Lot", w: 20, get: ({ l }) => l.lot },
-      { title: "T°", w: 14, get: ({ l }) => (Number.isFinite(l.temp) ? `${fmtNum(l.temp)} °C` : ""), color: ({ l }) => (l.tempOk === false ? RED : null) },
-      { title: "DLC", w: 18, get: ({ l }) => (l.dlc ? fmtDate(l.dlc) : ""), color: ({ l }) => (l.dlcOk === false ? RED : null) },
-      { title: "Produit", w: 16, get: ({ l }) => (l.accepted ? "Accepté" : "REFUSÉ"), color: ({ l }) => (l.accepted ? null : RED) },
-      { title: "Contrôles", w: 25, get: ({ r }) => checks(r) },
-      { title: "Décision / commentaire", w: 40, get: ({ r }) => [dec[r.decision], r.comment].filter(Boolean).join(" - ") },
-      { title: "Par", w: 12, get: ({ r }) => r.by },
-    ],
-    rows,
-    M + 12
-  );
-  return finish(ctx.doc, shop);
-}
-
 export async function pdfCleaning(data, from, to) {
   const shop = data.settings.shopName || "O'Délices";
   const ctx = makeDoc("Plan de nettoyage et de désinfection", period(from, to), shop);

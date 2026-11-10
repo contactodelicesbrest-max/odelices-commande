@@ -1,6 +1,7 @@
 // Lecture automatique des étiquettes : le texte est reconnu sur le téléphone (ML Kit),
 // puis on y cherche le nom du produit, le numéro de lot, la DLC/DDM et l'estampille sanitaire.
 import { Capacitor, registerPlugin } from "@capacitor/core";
+import { detectType, openingAdvice, quantityFromLabel } from "./products.js";
 
 const TextReader = registerPlugin("TextReader");
 export const isOcrAvailable = () => Capacitor.isNativePlatform();
@@ -117,6 +118,16 @@ export function parseLabel(text, lines = []) {
     );
     result.product = cleanName(next ? `${top.text} ${next.text}` : top.text);
     result.found.push("nom");
+  }
+  // --- Type de produit, quantité, conseil après ouverture
+  const advice = openingAdvice(result.product, text);
+  result.type = advice.type || detectType(text);
+  result.advice = advice;
+  if (result.type) result.found.push(`type : ${result.type.label}`);
+  const q = quantityFromLabel(text);
+  if (q) {
+    result.quantity = q;
+    result.found.push("quantité");
   }
   return result;
 }

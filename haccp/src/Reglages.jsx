@@ -8,7 +8,7 @@ import { useData } from "./store.jsx";
 import { Sheet, Field, Chips } from "./ui.jsx";
 import { EQUIP_TYPES, exportAll, importAll } from "./db.js";
 import { addDays, dayKey, fmtNum, parseNum, saveFile, todayKey } from "./utils.js";
-import { pdfCleaning, pdfOil, pdfProcess, pdfReceptions, pdfStock, pdfTemperatures, pdfTrace } from "./pdf.js";
+import { pdfCleaning, pdfOil, pdfProcess, pdfStock, pdfTemperatures, pdfTrace } from "./pdf.js";
 
 export default function Reglages({ go }) {
   const { data, save, remove, updateSettings, reload } = useData();
@@ -34,8 +34,8 @@ export default function Reglages({ go }) {
   const report = async (kind) => {
     setBusy(kind);
     try {
-      const fn = { temps: pdfTemperatures, process: pdfProcess, trace: pdfTrace, oil: pdfOil, reception: pdfReceptions, clean: pdfCleaning, stock: pdfStock }[kind];
-      const name = { temps: "temperatures", process: "cuisson-refroidissement", trace: "tracabilite", oil: "huile", reception: "receptions", clean: "nettoyage", stock: "stock" }[kind];
+      const fn = { temps: pdfTemperatures, process: pdfProcess, trace: pdfTrace, oil: pdfOil, clean: pdfCleaning, stock: pdfStock }[kind];
+      const name = { temps: "temperatures", process: "cuisson-refroidissement", trace: "tracabilite", oil: "huile", clean: "nettoyage", stock: "stock" }[kind];
       const blob = await fn(data, from, to);
       await saveFile(blob, `haccp-${name}-${from}_${to}.pdf`);
     } catch (e) {
@@ -175,7 +175,6 @@ export default function Reglages({ go }) {
             ["process", "Cuisson / refroid."],
             ["trace", "Traçabilité (photos)"],
             ["oil", "Huile de friture"],
-            ["reception", "Réceptions"],
             ["clean", "Nettoyage"],
             ["stock", "Stock"],
           ].map(([k, l]) => (

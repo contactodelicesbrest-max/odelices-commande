@@ -1,8 +1,9 @@
-import { useMemo, useState } from "react";
+import { useEffect, useMemo, useState } from "react";
 import { ClipboardCheck, Plus, Trash2, CheckCircle2, Search, Printer } from "lucide-react";
 import { isPrintAvailable, printLabelsSafe } from "./printer.js";
 import ServicePrint from "./ServicePrint.jsx";
-import { isOcrAvailable, readLabel } from "./labelReader.js";
+import LabelPhoto from "./LabelPhoto.jsx";
+import { openingAdvice } from "./products.js";
 import SauceForm from "./Sauce.jsx";
 import { useData } from "./store.jsx";
 import { Sheet, Field, Chips, Badge, Empty, PhotoInput, PhotoThumb } from "./ui.jsx";
@@ -197,23 +198,41 @@ function TraceForm({ initial, onClose }) {
 
   const kind = TRACE_KINDS[f.kind] || TRACE_KINDS.open;
   const canPrint = isPrintAvailable() && !!data.settings.printerAddress;
-  const [ocr, setOcr] = useState(null); // { busy } | { found: [...] } | { error }
-  const onOcr = async (dataUrl) => {
-    setOcr({ busy: true });
-    try {
-      const r = await readLabel(dataUrl);
-      setF((s) => ({
-        ...s,
-        product: s.product || r.product,
-        lot: s.lot || r.lot,
-        dlc: s.dlc || r.dlc,
-        dlcType: s.dlc ? s.dlcType : r.dlcType || s.dlcType,
-        stamp: s.stamp || r.stamp,
-      }));
-      setOcr({ found: r.found });
-    } catch (e) {
-      setOcr({ error: e.message });
-    }
+  const [labelText, setLabelText] = useState("");
+  const [keepTouched, setKeepTouched] = useState(!isNew);
+  const advice = f.kind === "open" && (f.product || labelText) ? openingAdvice(f.product, labelText) : null;
+  // Durée conseillée appliquée automatiquement tant que l'utilisateur ne l'a pas changée
+  useEffect(() => {
+    if (!keepTouched && advice) setF((s) => (s.keepDays === (advice.days || "") ? s : { ...s, keepDays: advice.days || "" }));
+  }, [advice?.days, keepTouched]); // eslint-disable-line react-hooks/exhaustive-deps
+  const onRead = (r) => {
+    setLabelText(r.raw || "");
+    setF((s) => ({
+      ...s,
+      product: s.product || r.product,
+      lot: s.lot || r.lot,
+      dlc: s.dlc || r.dlc,
+      dlcType: s.dlc ? s.dlcType : r.dlcType || s.dlcType,
+      stamp: s.stamp || r.stamp,
+    }));
+  };
+  // Choisir un produit du stock : tout est repris (nom, lot, date, photo, fournisseur)
+  const pickStock = (id) => {
+    const it = data.stock.find((x) => x.id === id);
+    setF((s) => ({
+      ...s,
+      stockId: id,
+      ...(it
+        ? {
+            product: it.name,
+            lot: it.lot || s.lot,
+            dlc: it.dlc || s.dlc,
+            dlcType: it.dlcType || (it.dlc ? "DLC" : s.dlcType),
+            supplier: it.supplier || s.supplier,
+            photoId: s.photoId || it.photoId || null,
+          }
+        : {}),
+    }));
   };
   const [doPrint, setDoPrint] = useState(isNew && canPrint && !!data.settings.printerAuto);
   const dlcExpired = f.dlc && f.dlcType === "DLC" && daysUntil(f.dlc) < 0;
@@ -288,21 +307,25 @@ function TraceForm({ initial, onClose }) {
         onChange={(v) => v && setF((s) => ({ ...s, kind: v, keepDays: TRACE_KINDS[v].days }))}
       />
       <div className="alert info">ℹ️ {kind.rule}</div>
-      <PhotoInput
+      {isNew && f.kind !== "homemade" && data.stock.length > 0 && (
+        <Field label="Prendre dans le stock (remplit tout automatiquement)">
+          <select className="input" value={f.stockId} onChange={(e) => pickStock(e.target.value)}>
+            <option value="">— Nouveau produit (photo) —</option>
+            {[...data.stock].sort((a, b) => a.name.localeCompare(b.name)).map((x) => (
+              <option key={x.id} value={x.id}>
+                {x.name} ({fmtNum(x.qty, 2)} {x.unit}){x.dlc ? ` · ${x.dlcType || "DLC"} ${fmtDate(x.dlc)}` : ""}
+              </option>
+            ))}
+          </select>
+        </Field>
+      )}
+      <LabelPhoto
         photoId={f.photoId}
         onChange={set("photoId")}
+        onRead={onRead}
+        read={f.kind !== "homemade"}
         label={f.kind === "homemade" ? "Photo (facultatif)" : "Photo de l'étiquette"}
-        onOcr={isOcrAvailable() && f.kind !== "homemade" ? onOcr : null}
       />
-      {ocr?.busy && <div className="alert info">🔎 Lecture de l'étiquette…</div>}
-      {ocr?.found && (
-        <div className={"alert " + (ocr.found.length ? "ok" : "warn")}>
-          {ocr.found.length
-            ? `📷 Lu sur l'étiquette : ${ocr.found.join(", ")}. Vérifie avant d'enregistrer.`
-            : "Rien de lisible trouvé : rapproche-toi de l'étiquette ou remplis à la main."}
-        </div>
-      )}
-      {ocr?.error && <div className="alert warn">Lecture impossible : {ocr.error}</div>}
       <Field label="Produit *">
         <input className="input" list="trace-names" value={f.product} onChange={set("product")} placeholder="ex : Poulet mariné, Sauce blanche…" />
         <datalist id="trace-names">
@@ -318,7 +341,7 @@ function TraceForm({ initial, onClose }) {
         <Field label="Fournisseur">
           <input className="input" value={f.supplier} onChange={set("supplier")} />
         </Field>
-        {(f.stamp || ocr?.found) && (
+        {(f.stamp || labelText) && (
           <Field label="Estampille sanitaire">
             <input className="input" value={f.stamp || ""} onChange={set("stamp")} placeholder="ex : FR 29.019.001 CE" />
           </Field>
@@ -349,32 +372,29 @@ function TraceForm({ initial, onClose }) {
         }
       >
         <Chips
-          options={[{ value: 1, label: "J+1" }, { value: 2, label: "J+2" }, { value: 3, label: "J+3" }, { value: 5, label: "J+5" }, { value: 7, label: "J+7" }]}
+          options={[...new Set([1, 2, 3, 5, 7, ...(advice?.days ? [advice.days] : [])])]
+            .sort((x, y) => x - y)
+            .map((n) => ({ value: n, label: `J+${n}${advice?.days === n ? " ★" : ""}` }))}
           value={Number(f.keepDays) || null}
-          onChange={(v) => set("keepDays")(v || "")}
+          onChange={(v) => {
+            setKeepTouched(true);
+            set("keepDays")(v || "");
+          }}
         />
       </Field>
+      {advice && (
+        <div className="alert info">
+          💡 <strong>Conseil{advice.type ? ` (${advice.type.label})` : ""} :</strong>{" "}
+          {advice.days ? `${advice.days} jour(s) maximum après ouverture` : "pas de limite après ouverture, suivre la date du fabricant"}. {advice.text}
+        </div>
+      )}
       {Number(f.keepDays) > 3 && f.kind !== "open" && (
         <div className="alert warn">Plus de 3 jours : seulement si une étude de durée de vie ou le fabricant le permet.</div>
       )}
-      {isNew && data.stock.length > 0 && (
-        <div className="grid2">
-          <Field label="Déduire du stock">
-            <select className="input" value={f.stockId} onChange={set("stockId")}>
-              <option value="">— Non —</option>
-              {[...data.stock].sort((a, b) => a.name.localeCompare(b.name)).map((s) => (
-                <option key={s.id} value={s.id}>
-                  {s.name} ({fmtNum(s.qty, 2)} {s.unit})
-                </option>
-              ))}
-            </select>
-          </Field>
-          {stockItem && (
-            <Field label={`Quantité (${stockItem.unit})`}>
-              <input className="input" inputMode="decimal" value={f.stockQty} onChange={set("stockQty")} />
-            </Field>
-          )}
-        </div>
+      {isNew && stockItem && (
+        <Field label={`Quantité retirée du stock (${stockItem.unit}) — en stock : ${fmtNum(stockItem.qty, 2)}`}>
+          <input className="input" inputMode="decimal" value={f.stockQty} onChange={set("stockQty")} placeholder="ex : 1" />
+        </Field>
       )}
       {!isNew && (
         <Field label="Statut">

@@ -3,7 +3,7 @@ import ServicePrint from "./ServicePrint.jsx";
 import { ReceiptText } from "lucide-react";
 import { useEffect, useState } from "react";
 import { onCloudStatus } from "./cloud.js";
-import { Thermometer, ClipboardCheck, Droplets, Package, AlertTriangle, CheckCircle2, Camera, Sparkles, BookOpen, Timer, Truck, Flame, RotateCcw } from "lucide-react";
+import { Thermometer, ClipboardCheck, Droplets, Package, AlertTriangle, CheckCircle2, Camera, Sparkles, BookOpen, Timer, Flame, RotateCcw } from "lucide-react";
 import { pendingRechecks, statusOf } from "./Temperatures.jsx";
 import { PROCESS, minutesBetween } from "./Process.jsx";
 import { taskState } from "./Nettoyage.jsx";
@@ -44,8 +44,6 @@ export default function Accueil({ go }) {
   const cleanTodo = data.cleanTasks.map((t) => ({ t, ...taskState(t, data.cleanLogs) })).filter((x) => !x.done);
   if (cleanTodo.length)
     tasks.push({ tab: "clean", icon: Sparkles, text: `Nettoyage : ${cleanTodo.length} tâche(s) — ${cleanTodo.slice(0, 3).map((x) => x.t.name).join(", ")}${cleanTodo.length > 3 ? "…" : ""}` });
-  for (const r of data.receptions.filter((x) => x.decision !== "accepted" && dayKey(x.at) === today))
-    alerts.push({ tab: "stock", icon: Truck, text: `Livraison ${r.supplier || ""} non conforme${r.comment ? ` — ${r.comment}` : ""}` });
   for (const t of tempsToday.filter((t) => statusOf(t) !== "ok"))
     alerts.push({ tab: "temps", icon: Thermometer, text: `${t.equipmentName} à ${fmtNum(t.value)} °C (${t.moment.toLowerCase()})${t.action ? ` — ${t.action}` : ""}` });
 
@@ -111,7 +109,7 @@ export default function Accueil({ go }) {
         </button>
         <button className="quick-btn q-stock" onClick={() => go("stock")}>
           <Package size={28} />
-          <span>Stock / livraison</span>
+          <span>Stock</span>
         </button>
         <button className="quick-btn q-clean" onClick={() => go("clean")}>
           <Sparkles size={28} />

@@ -2,7 +2,7 @@ import { EQUIP_TYPES } from "./db.js";
 import { OIL_RULES } from "./Huile.jsx";
 import { PROCESS } from "./Process.jsx";
 import { TRACE_KINDS } from "./Tracabilite.jsx";
-import { RECEPTION_TYPES } from "./Reception.jsx";
+import { PRODUCT_TYPES } from "./products.js";
 
 // Mémo des règles appliquées dans l'appli (à titre d'aide : le texte officiel fait foi).
 export default function Memo() {
@@ -64,15 +64,21 @@ export default function Memo() {
         <p className="small muted">Sources : décret n° 2008-184 du 26 février 2008 ; règlement (UE) 2017/2158 (acrylamide).</p>
       </div>
 
-      <h3 className="section-title">🚚 Réception des marchandises</h3>
+      <h3 className="section-title">📦 Stock et produits entamés</h3>
       <div className="card pad">
         <ul>
-          {Object.values(RECEPTION_TYPES).map((t) => (
-            <li key={t.label}><strong>{t.label}</strong> : {t.rule}</li>
-          ))}
-          <li>Vérifier emballages, étiquettes, DLC et propreté du véhicule. Refuser les produits non conformes et le noter sur le bon de livraison.</li>
-          <li>Ranger immédiatement : surgelés d'abord, puis frais. PEPS : premier entré, premier sorti.</li>
+          <li>À l'arrivée : frais à +4 °C max, viande hachée +2 °C, surgelés -18 °C. Refuser un produit chaud, abîmé ou à la date trop courte. Ranger tout de suite (surgelés d'abord).</li>
+          <li>PEPS : premier entré, premier sorti — utiliser d'abord la date la plus proche.</li>
         </ul>
+        <span className="field-label">Durée maximale après ouverture (si l'étiquette n'indique rien)</span>
+        <ul>
+          {PRODUCT_TYPES.map((t) => (
+            <li key={t.id}>
+              <strong>{t.label}</strong> : {t.days ? `${t.days} j` : "date du fabricant"}
+            </li>
+          ))}
+        </ul>
+        <p className="small muted">Toujours suivre en priorité l'indication du fabricant (« après ouverture… ») et ne jamais dépasser la DLC d'origine. Ces durées sont des conseils prudents issus des bonnes pratiques d'hygiène.</p>
       </div>
 
       <h3 className="section-title">🧽 Nettoyage et hygiène</h3>

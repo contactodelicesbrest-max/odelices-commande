@@ -1,6 +1,8 @@
 import { useMemo, useState } from "react";
-import { Package, Plus, Minus, Search, ShoppingCart, Trash2, CheckCircle2, History, Truck } from "lucide-react";
-import ReceptionForm, { ReceptionList } from "./Reception.jsx";
+import { Package, Plus, Minus, Search, ShoppingCart, Trash2, CheckCircle2, History } from "lucide-react";
+import LabelPhoto from "./LabelPhoto.jsx";
+import { PhotoThumb } from "./ui.jsx";
+import { detectType, openingAdvice } from "./products.js";
 import { useData } from "./store.jsx";
 import { Sheet, Field, Chips, Badge, Empty } from "./ui.jsx";
 import { daysUntil, fmtDate, fmtDateTime, fmtNum, parseNum, shareText } from "./utils.js";
@@ -9,7 +11,7 @@ import { dlcTone } from "./Tracabilite.jsx";
 export const CATEGORIES = ["Viandes", "Volailles", "Fruits & légumes", "Crèmerie / fromages", "Sauces", "Surgelés", "Pains", "Épicerie", "Boissons", "Emballages", "Hygiène", "Autre"];
 export const UNITS = ["kg", "g", "L", "pièce", "carton", "sachet", "seau", "boîte", "bouteille", "pack"];
 const MOVE_KINDS = {
-  in: { label: "Entrée / livraison", sign: 1 },
+  in: { label: "Entrée / réassort", sign: 1 },
   out: { label: "Sortie / utilisation", sign: -1 },
   loss: { label: "Perte / casse / jeté", sign: -1 },
   inv: { label: "Inventaire (quantité réelle)", sign: 0 },
@@ -25,7 +27,6 @@ export default function Stock() {
   const [edit, setEdit] = useState(null);
   const [move, setMove] = useState(null);
   const [showMoves, setShowMoves] = useState(false);
-  const [reception, setReception] = useState(null);
 
   const items = useMemo(() => [...data.stock].sort((a, b) => a.name.localeCompare(b.name)), [data.stock]);
   const low = items.filter(isLow);
@@ -51,14 +52,9 @@ export default function Stock() {
             {items.length} produit(s) · {low.length} en alerte
           </div>
         </div>
-        <div className="col gap-s">
-          <button className="btn btn-primary" onClick={() => setReception({})}>
-            <Truck size={20} /> Livraison
-          </button>
-          <button className="btn btn-sm btn-ghost" onClick={() => setEdit({})}>
-            <Plus size={16} /> Produit
-          </button>
-        </div>
+        <button className="btn btn-primary" onClick={() => setEdit({})}>
+          <Plus size={20} /> Ajouter au stock
+        </button>
       </div>
       {expired.length > 0 && (
         <div className="alert ko">
@@ -90,18 +86,19 @@ export default function Stock() {
       </div>
       {usedCats.length > 1 && <Chips options={usedCats} value={cat} onChange={setCat} />}
 
-      {filtered.length === 0 && <Empty icon={Package}>{items.length ? "Aucun résultat." : "Ajoute tes produits avec le bouton « Produit »."}</Empty>}
+      {filtered.length === 0 && <Empty icon={Package}>{items.length ? "Aucun résultat." : "Ajoute tes produits avec « Ajouter au stock » : prends la photo de l'étiquette, le reste se remplit tout seul."}</Empty>}
       <div className="card list">
         {filtered.map((s) => (
           <div key={s.id} className="list-row" onClick={() => setEdit(s)} role="button">
+            {s.photoId && <PhotoThumb id={s.photoId} />}
             <span className="list-main">
               <strong>{s.name}</strong>
               <span className="muted small">
-                {[s.category, s.location, s.supplier].filter(Boolean).join(" · ")}
+                {[s.category, s.lot && `lot ${s.lot}`, s.location, s.supplier].filter(Boolean).join(" · ")}
               </span>
               <span className="row gap-s wrap">
                 {isLow(s) && <Badge tone="ko">Stock bas (mini {fmtNum(s.min, 2)})</Badge>}
-                {s.dlc && <Badge tone={dlcTone(s.dlc)}>DLC {fmtDate(s.dlc)}{daysUntil(s.dlc) < 0 ? " dépassée" : ""}</Badge>}
+                {s.dlc && <Badge tone={s.dlcType === "DDM" ? "neutral" : dlcTone(s.dlc)}>{s.dlcType || "DLC"} {fmtDate(s.dlc)}{daysUntil(s.dlc) < 0 ? " dépassée" : ""}</Badge>}
               </span>
             </span>
             <span className="stock-ctrl" onClick={(e) => e.stopPropagation()}>
@@ -120,11 +117,8 @@ export default function Stock() {
         ))}
       </div>
 
-      <h3 className="section-title">Réceptions récentes</h3>
-      <ReceptionList onOpen={setReception} />
       <p className="muted small rule">ℹ️ PEPS (premier entré, premier sorti) : ranger les nouvelles livraisons derrière et utiliser d'abord les produits dont la DLC est la plus proche.</p>
 
-      {reception && <ReceptionForm initial={reception} onClose={() => setReception(null)} />}
       {edit && <StockForm initial={edit} onClose={() => setEdit(null)} onMove={(kind) => { setMove({ item: edit, kind }); setEdit(null); }} />}
       {move && <MoveForm {...move} onClose={() => setMove(null)} />}
       {showMoves && <MovesSheet onClose={() => setShowMoves(false)} />}
@@ -142,12 +136,32 @@ function StockForm({ initial, onClose, onMove }) {
     location: "",
     supplier: "",
     dlc: "",
+    dlcType: "DLC",
+    lot: "",
+    photoId: null,
     ...initial,
     qty: initial.qty != null ? String(initial.qty).replace(".", ",") : "",
     min: initial.min != null ? String(initial.min).replace(".", ",") : "",
   });
   const set = (k) => (v) => setF((s) => ({ ...s, [k]: v?.target ? v.target.value : v }));
   const locations = [...new Set([...data.equipments.map((e) => e.name), "Réserve sèche", ...data.stock.map((s) => s.location).filter(Boolean)])];
+  const [labelText, setLabelText] = useState("");
+  const type = detectType(`${f.name} ${labelText}`);
+  const advice = f.name || labelText ? openingAdvice(f.name, labelText) : null;
+  const onRead = (r) => {
+    setLabelText(r.raw || "");
+    setF((s) => ({
+      ...s,
+      name: s.name || r.product,
+      lot: s.lot || r.lot,
+      dlc: s.dlc || r.dlc,
+      dlcType: s.dlc ? s.dlcType : r.dlcType || s.dlcType,
+      category: isNew && r.type?.cat ? r.type.cat : s.category,
+      unit: isNew && r.quantity ? r.quantity.unit : isNew && r.type?.unit ? r.type.unit : s.unit,
+      qty: s.qty || (r.quantity ? String(r.quantity.qty).replace(".", ",") : s.qty),
+      supplier: s.supplier || (r.stamp ? r.stamp : ""),
+    }));
+  };
 
   const submit = async () => {
     if (!f.name.trim()) return alert("Indique le nom du produit.");
@@ -215,13 +229,25 @@ function StockForm({ initial, onClose, onMove }) {
       {!isNew && (
         <div className="row gap">
           <button className="btn btn-ghost btn-block" onClick={() => onMove("out")}><Minus size={18} /> Sortie</button>
-          <button className="btn btn-ghost btn-block" onClick={() => onMove("in")}><Plus size={18} /> Livraison</button>
+          <button className="btn btn-ghost btn-block" onClick={() => onMove("in")}><Plus size={18} /> Réassort</button>
           <button className="btn btn-ghost btn-block" onClick={() => onMove("loss")}><Trash2 size={18} /> Perte</button>
         </div>
       )}
+      <LabelPhoto photoId={f.photoId} onChange={set("photoId")} onRead={onRead} />
       <Field label="Nom *">
-        <input className="input" value={f.name} onChange={set("name")} />
+        <input
+          className="input"
+          value={f.name}
+          onChange={set("name")}
+          onBlur={() => isNew && type && setF((s) => ({ ...s, category: s.category === "Autre" ? type.cat : s.category }))}
+        />
       </Field>
+      {advice && (
+        <div className="alert info">
+          {type && <strong>{type.label} · </strong>}
+          Après ouverture : {advice.days ? `${advice.days} jour(s) maximum` : "jusqu'à la date du fabricant"}. {advice.text}
+        </div>
+      )}
       <div className="grid2">
         <Field label="Quantité en stock">
           <input className="input" inputMode="decimal" value={f.qty} onChange={set("qty")} />
@@ -247,9 +273,19 @@ function StockForm({ initial, onClose, onMove }) {
           <input className="input" value={f.supplier} onChange={set("supplier")} />
         </Field>
       </div>
-      <Field label="DLC du lot en stock (facultatif)">
-        <input className="input" type="date" value={f.dlc || ""} onChange={set("dlc")} />
-      </Field>
+      <div className="grid2">
+        <Field label="N° de lot">
+          <input className="input" value={f.lot || ""} onChange={set("lot")} />
+        </Field>
+        <Field label="Date sur l'étiquette">
+          <input className="input" type="date" value={f.dlc || ""} onChange={set("dlc")} />
+        </Field>
+      </div>
+      <Chips
+        options={[{ value: "DLC", label: "DLC (à consommer jusqu'au)" }, { value: "DDM", label: "DDM (de préférence avant)" }]}
+        value={f.dlcType || "DLC"}
+        onChange={(v) => v && set("dlcType")(v)}
+      />
     </Sheet>
   );
 }
@@ -260,6 +296,9 @@ function MoveForm({ item, kind: initialKind, onClose }) {
   const [qty, setQty] = useState(kind === "inv" ? String(item.qty || 0) : "");
   const [reason, setReason] = useState("");
   const [dlc, setDlc] = useState("");
+  const [lot, setLot] = useState("");
+  const [dlcType, setDlcType] = useState(item.dlcType || "DLC");
+  const [photoId, setPhotoId] = useState(null);
   const k = MOVE_KINDS[kind];
   const v = parseNum(qty);
 
@@ -268,7 +307,13 @@ function MoveForm({ item, kind: initialKind, onClose }) {
     const before = item.qty || 0;
     const after = kind === "inv" ? v : Math.max(0, before + k.sign * v);
     const patch = { ...item, qty: after };
-    if (kind === "in" && dlc) patch.dlc = dlc;
+    if (kind === "in") {
+      // PEPS : on garde la date la plus proche (le plus ancien est utilisé en premier)
+      if (dlc) patch.dlc = item.qty > 0 && item.dlc && item.dlc < dlc ? item.dlc : dlc;
+      if (dlc) patch.dlcType = dlcType;
+      if (lot) patch.lot = lot;
+      if (photoId) patch.photoId = photoId;
+    }
     await save("stock", patch);
     await save("moves", {
       stockId: item.id,
@@ -276,7 +321,7 @@ function MoveForm({ item, kind: initialKind, onClose }) {
       kind,
       qty: after - before,
       unit: item.unit,
-      reason: reason.trim() || k.label,
+      reason: (reason.trim() || k.label) + (kind === "in" && lot ? ` — lot ${lot}` : ""),
       at: new Date().toISOString(),
       by: data.settings.operator || "",
     });
@@ -302,9 +347,28 @@ function MoveForm({ item, kind: initialKind, onClose }) {
         <p className="muted">Après : <strong>{fmtNum(Math.max(0, (item.qty || 0) + k.sign * v), 2)} {item.unit}</strong></p>
       )}
       {kind === "in" && (
-        <Field label="DLC de la livraison (facultatif)">
-          <input className="input" type="date" value={dlc} onChange={(e) => setDlc(e.target.value)} />
-        </Field>
+        <>
+          <LabelPhoto
+            photoId={photoId}
+            onChange={setPhotoId}
+            onRead={(r) => {
+              if (r.dlc && !dlc) {
+                setDlc(r.dlc);
+                setDlcType(r.dlcType || "DLC");
+              }
+              if (r.lot && !lot) setLot(r.lot);
+              if (r.quantity && !qty && r.quantity.unit === item.unit) setQty(String(r.quantity.qty).replace(".", ","));
+            }}
+          />
+          <div className="grid2">
+            <Field label="N° de lot">
+              <input className="input" value={lot} onChange={(e) => setLot(e.target.value)} />
+            </Field>
+            <Field label={`${dlcType} du nouveau lot`}>
+              <input className="input" type="date" value={dlc} onChange={(e) => setDlc(e.target.value)} />
+            </Field>
+          </div>
+        </>
       )}
       <Field label="Motif / commentaire">
         <input className="input" value={reason} onChange={(e) => setReason(e.target.value)} />
