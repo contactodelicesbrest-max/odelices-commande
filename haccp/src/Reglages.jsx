@@ -1,7 +1,7 @@
 import { useEffect, useRef, useState } from "react";
 import { onCloudStatus, restoreFromCloud, syncNow } from "./cloud.js";
 import { coldMeats } from "./Process.jsx";
-import { isPrintAvailable, listPrinters, printTest } from "./printer.js";
+import { CHARSETS, charsetOf, isPrintAvailable, listPrinters, printCharsetTest, printTest } from "./printer.js";
 import { Plus, Trash2, FileDown, Upload, Download, Thermometer, Droplets, Pencil, ArrowUp, ArrowDown, Cloud, CloudDownload, RefreshCw } from "lucide-react";
 import { useData } from "./store.jsx";
 import { Sheet, Field, Chips } from "./ui.jsx";
@@ -356,10 +356,10 @@ function PrinterCard({ settings, updateSettings }) {
       setBusy(false);
     }
   };
-  const test = async () => {
+  const test = async (fn = printTest) => {
     setBusy(true);
     try {
-      await printTest(settings);
+      await fn(settings);
     } catch (e) {
       alert(e.message);
     } finally {
@@ -406,15 +406,21 @@ function PrinterCard({ settings, updateSettings }) {
       <Field label="Nombre d'étiquettes par produit">
         <Chips options={[1, 2, 3]} value={Number(settings.printerCopies) || 1} onChange={(v) => v && updateSettings({ printerCopies: v })} />
       </Field>
-      <label className="check">
-        <input type="checkbox" checked={settings.printerAccents !== false} onChange={(e) => updateSettings({ printerAccents: e.target.checked })} />
-        Accents (décocher si l'imprimante affiche des caractères bizarres)
-      </label>
+      <Field label="Réglage des accents" hint="Imprime « Test des accents », puis choisis le numéro où é è à ç et ° sont corrects.">
+        <Chips
+          options={Object.entries(CHARSETS).map(([value, c]) => ({ value, label: c.label }))}
+          value={charsetOf(settings)}
+          onChange={(v) => v && updateSettings({ printerCharset: v })}
+        />
+      </Field>
+      <button className="btn btn-ghost" disabled={busy || !native || !settings.printerAddress} onClick={() => test(printCharsetTest)}>
+        Test des accents
+      </button>
       <label className="check">
         <input type="checkbox" checked={!!settings.printerAuto} onChange={(e) => updateSettings({ printerAuto: e.target.checked })} />
         Imprimer automatiquement l'étiquette à chaque produit enregistré
       </label>
-      <button className="btn btn-primary" disabled={busy || !native || !settings.printerAddress} onClick={test}>
+      <button className="btn btn-primary" disabled={busy || !native || !settings.printerAddress} onClick={() => test()}>
         {busy ? "…" : "Imprimer une étiquette test"}
       </button>
     </div>
