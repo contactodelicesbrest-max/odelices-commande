@@ -2,6 +2,7 @@ import { useMemo, useState } from "react";
 import { ClipboardCheck, Plus, Trash2, CheckCircle2, Search, Printer } from "lucide-react";
 import { isPrintAvailable, printLabelsSafe } from "./printer.js";
 import ServicePrint from "./ServicePrint.jsx";
+import { isOcrAvailable, readLabel } from "./labelReader.js";
 import SauceForm from "./Sauce.jsx";
 import { useData } from "./store.jsx";
 import { Sheet, Field, Chips, Badge, Empty, PhotoInput, PhotoThumb } from "./ui.jsx";
@@ -196,6 +197,24 @@ function TraceForm({ initial, onClose }) {
 
   const kind = TRACE_KINDS[f.kind] || TRACE_KINDS.open;
   const canPrint = isPrintAvailable() && !!data.settings.printerAddress;
+  const [ocr, setOcr] = useState(null); // { busy } | { found: [...] } | { error }
+  const onOcr = async (dataUrl) => {
+    setOcr({ busy: true });
+    try {
+      const r = await readLabel(dataUrl);
+      setF((s) => ({
+        ...s,
+        product: s.product || r.product,
+        lot: s.lot || r.lot,
+        dlc: s.dlc || r.dlc,
+        dlcType: s.dlc ? s.dlcType : r.dlcType || s.dlcType,
+        stamp: s.stamp || r.stamp,
+      }));
+      setOcr({ found: r.found });
+    } catch (e) {
+      setOcr({ error: e.message });
+    }
+  };
   const [doPrint, setDoPrint] = useState(isNew && canPrint && !!data.settings.printerAuto);
   const dlcExpired = f.dlc && f.dlcType === "DLC" && daysUntil(f.dlc) < 0;
   const ddmExpired = f.dlc && f.dlcType === "DDM" && daysUntil(f.dlc) < 0;
@@ -269,7 +288,21 @@ function TraceForm({ initial, onClose }) {
         onChange={(v) => v && setF((s) => ({ ...s, kind: v, keepDays: TRACE_KINDS[v].days }))}
       />
       <div className="alert info">ℹ️ {kind.rule}</div>
-      <PhotoInput photoId={f.photoId} onChange={set("photoId")} label={f.kind === "homemade" ? "Photo (facultatif)" : "Photo de l'étiquette"} />
+      <PhotoInput
+        photoId={f.photoId}
+        onChange={set("photoId")}
+        label={f.kind === "homemade" ? "Photo (facultatif)" : "Photo de l'étiquette"}
+        onOcr={isOcrAvailable() && f.kind !== "homemade" ? onOcr : null}
+      />
+      {ocr?.busy && <div className="alert info">🔎 Lecture de l'étiquette…</div>}
+      {ocr?.found && (
+        <div className={"alert " + (ocr.found.length ? "ok" : "warn")}>
+          {ocr.found.length
+            ? `📷 Lu sur l'étiquette : ${ocr.found.join(", ")}. Vérifie avant d'enregistrer.`
+            : "Rien de lisible trouvé : rapproche-toi de l'étiquette ou remplis à la main."}
+        </div>
+      )}
+      {ocr?.error && <div className="alert warn">Lecture impossible : {ocr.error}</div>}
       <Field label="Produit *">
         <input className="input" list="trace-names" value={f.product} onChange={set("product")} placeholder="ex : Poulet mariné, Sauce blanche…" />
         <datalist id="trace-names">
@@ -285,6 +318,11 @@ function TraceForm({ initial, onClose }) {
         <Field label="Fournisseur">
           <input className="input" value={f.supplier} onChange={set("supplier")} />
         </Field>
+        {(f.stamp || ocr?.found) && (
+          <Field label="Estampille sanitaire">
+            <input className="input" value={f.stamp || ""} onChange={set("stamp")} placeholder="ex : FR 29.019.001 CE" />
+          </Field>
+        )}
         <Field label={f.kind === "homemade" ? "DLC ingrédient le plus court" : "Date sur l'étiquette"}>
           <input className="input" type="date" value={f.dlc} onChange={set("dlc")} />
           <Chips

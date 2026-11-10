@@ -107,7 +107,7 @@ export function TempInput({ value, onChange, negativeDefault, autoFocus }) {
   );
 }
 
-export function PhotoInput({ photoId, onChange, label = "Photo de l'étiquette" }) {
+export function PhotoInput({ photoId, onChange, label = "Photo de l'étiquette", onOcr }) {
   const { savePhoto } = useData();
   const camRef = useRef();
   const galRef = useRef();
@@ -121,6 +121,8 @@ export function PhotoInput({ photoId, onChange, label = "Photo de l'étiquette" 
       const dataUrl = await compressImage(f);
       const id = await savePhoto(dataUrl);
       onChange(id);
+      // Lecture automatique de l'étiquette : image plus grande pour lire les petits caractères
+      if (onOcr) onOcr(await compressImage(f, 2000, 0.9));
     } catch (err) {
       alert("Impossible de lire la photo : " + err?.message);
     } finally {

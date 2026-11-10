@@ -8,6 +8,8 @@ public class MainActivity extends BridgeActivity {
     public void onCreate(Bundle savedInstanceState) {
         // Plugin maison : impression Bluetooth (étiquettes DLC sur imprimante ticket ESC/POS)
         registerPlugin(BtPrinterPlugin.class);
+        // Plugin maison : lecture du texte des étiquettes (ML Kit, sur le téléphone)
+        registerPlugin(TextReaderPlugin.class);
         super.onCreate(savedInstanceState);
     }
 }
