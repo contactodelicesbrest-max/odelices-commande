@@ -119,7 +119,9 @@ public class BtPrinterPlugin extends Plugin {
             try {
                 byte[] bytes = Base64.decode(data, Base64.DEFAULT);
                 BluetoothDevice device = ad.getRemoteDevice(address);
-                ad.cancelDiscovery();
+                // Arrêter une recherche en cours accélère la connexion, mais demande
+                // l'autorisation BLUETOOTH_SCAN sur Android 12+ : facultatif.
+                try { ad.cancelDiscovery(); } catch (SecurityException ignored) { }
                 socket = connect(device);
                 OutputStream out = socket.getOutputStream();
                 // Envoi par petits morceaux : certaines imprimantes ont un petit tampon.
