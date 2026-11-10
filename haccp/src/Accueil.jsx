@@ -1,6 +1,9 @@
 import { useEffect, useState } from "react";
 import { onCloudStatus } from "./cloud.js";
-import { Thermometer, ClipboardCheck, Droplets, Package, AlertTriangle, CheckCircle2, Camera } from "lucide-react";
+import { Thermometer, ClipboardCheck, Droplets, Package, AlertTriangle, CheckCircle2, Camera, Sparkles, BookOpen, Timer, Truck } from "lucide-react";
+import { pendingRechecks, statusOf } from "./Temperatures.jsx";
+import { PROCESS, minutesBetween } from "./Process.jsx";
+import { taskState } from "./Nettoyage.jsx";
 import { useData } from "./store.jsx";
 import { dayKey, todayKey, momentOfDay, fmtNum, daysSince, fmtDate } from "./utils.js";
 import { fryerStatus } from "./Huile.jsx";
@@ -24,7 +27,21 @@ export default function Accueil({ go }) {
     const missing = eqs.filter((eq) => !tempsToday.some((t) => t.equipmentId === eq.id && t.moment === m));
     if (missing.length) tasks.push({ tab: "temps", icon: Thermometer, text: `Relevé du ${m.toLowerCase()} : ${missing.map((e) => e.name).join(", ")}` });
   }
-  for (const t of tempsToday.filter((t) => !t.ok))
+  for (const r of pendingRechecks(eqs, data.temps))
+    (r.late ? alerts : tasks).push({ tab: "temps", icon: Thermometer, text: `Recontrôler ${r.eq.name} (${fmtNum(r.last.value)} °C à ${new Date(r.last.at).toLocaleTimeString("fr-FR", { hour: "2-digit", minute: "2-digit" })})${r.late ? " — en retard" : ""}` });
+  for (const p of data.process.filter((x) => x.state === "running")) {
+    const def = PROCESS[p.kind];
+    const late = minutesBetween(p.startAt, new Date()) > def.maxMinutes;
+    (late ? alerts : tasks).push({ tab: "temps", icon: Timer, text: `${def.label} en cours : ${p.product}${late ? " — temps dépassé !" : " — à terminer"}` });
+  }
+  for (const p of data.process.filter((x) => x.state === "done" && x.ok === false && dayKey(x.at) === today))
+    alerts.push({ tab: "temps", icon: Timer, text: `${PROCESS[p.kind].label} non conforme : ${p.product}${p.action ? ` — ${p.action}` : ""}` });
+  const cleanTodo = data.cleanTasks.map((t) => ({ t, ...taskState(t, data.cleanLogs) })).filter((x) => !x.done);
+  if (cleanTodo.length)
+    tasks.push({ tab: "clean", icon: Sparkles, text: `Nettoyage : ${cleanTodo.length} tâche(s) — ${cleanTodo.slice(0, 3).map((x) => x.t.name).join(", ")}${cleanTodo.length > 3 ? "…" : ""}` });
+  for (const r of data.receptions.filter((x) => x.decision !== "accepted" && dayKey(x.at) === today))
+    alerts.push({ tab: "stock", icon: Truck, text: `Livraison ${r.supplier || ""} non conforme${r.comment ? ` — ${r.comment}` : ""}` });
+  for (const t of tempsToday.filter((t) => statusOf(t) !== "ok"))
     alerts.push({ tab: "temps", icon: Thermometer, text: `${t.equipmentName} à ${fmtNum(t.value)} °C (${t.moment.toLowerCase()})${t.action ? ` — ${t.action}` : ""}` });
 
   for (const fr of data.fryers) {
@@ -73,7 +90,15 @@ export default function Accueil({ go }) {
         </button>
         <button className="quick-btn q-stock" onClick={() => go("stock")}>
           <Package size={28} />
-          <span>Stock</span>
+          <span>Stock / livraison</span>
+        </button>
+        <button className="quick-btn q-clean" onClick={() => go("clean")}>
+          <Sparkles size={28} />
+          <span>Nettoyage</span>
+        </button>
+        <button className="quick-btn q-memo" onClick={() => go("memo")}>
+          <BookOpen size={28} />
+          <span>Mémo HACCP</span>
         </button>
       </div>
 

@@ -10,6 +10,25 @@ export const TRACE_STATUS = {
   thrown: { label: "Jeté", tone: "ko" },
 };
 
+// Durées de conservation par défaut (GBPH restauration / arrêté du 21/12/2009) — modifiables.
+export const TRACE_KINDS = {
+  open: {
+    label: "Produit ouvert",
+    days: 3,
+    rule: "Respecte la durée « après ouverture » indiquée sur l'étiquette si elle existe. Sans indication : J+3 maximum, et jamais au-delà de la DLC d'origine.",
+  },
+  homemade: {
+    label: "Préparation maison",
+    days: 3,
+    rule: "Sauces, marinades, préparations faites sur place : 3 jours maximum après le jour de fabrication (sans étude de durée de vie), conservées à +3 °C.",
+  },
+  thawed: {
+    label: "Décongélation",
+    days: 3,
+    rule: "Décongeler au réfrigérateur (jamais à température ambiante). À consommer sous 3 jours maximum. Ne JAMAIS recongeler un produit décongelé.",
+  },
+};
+
 export function dlcTone(d) {
   if (!d) return "neutral";
   const n = daysUntil(d);
@@ -27,7 +46,7 @@ export function dlcLabel(d) {
 }
 // La date limite effective est la plus proche entre la DLC fabricant et la DLC après ouverture.
 export const effectiveDlc = (t) => {
-  const ds = [t.dlc, t.dlcAfter].filter(Boolean).sort();
+  const ds = [t.dlcType === "DDM" ? null : t.dlc, t.dlcAfter].filter(Boolean).sort();
   return ds[0] || null;
 };
 
@@ -113,7 +132,7 @@ function TraceRow({ t, onClick, onDone }) {
       <span className="list-main">
         <strong>{t.product}</strong>
         <span className="muted small">
-          {fmtTime(t.at)} {t.lot && `· Lot ${t.lot}`} {t.qty && `· ${t.qty}`} {t.by && `· ${t.by}`}
+          {TRACE_KINDS[t.kind || "open"]?.label} · {fmtTime(t.at)} {t.lot && `· Lot ${t.lot}`} {t.qty && `· ${t.qty}`} {t.by && `· ${t.by}`}
         </span>
         <span className="row gap-s wrap">
           <Badge tone={TRACE_STATUS[t.status]?.tone}>{TRACE_STATUS[t.status]?.label}</Badge>
@@ -139,6 +158,8 @@ function TraceForm({ initial, onClose }) {
     lot: "",
     dlc: "",
     qty: "",
+    kind: "open",
+    dlcType: "DLC",
     keepDays: 3,
     status: "open",
     by: data.settings.operator || "",
@@ -157,11 +178,22 @@ function TraceForm({ initial, onClose }) {
     [data.stock, data.trace]
   );
 
+  const kind = TRACE_KINDS[f.kind] || TRACE_KINDS.open;
+  const dlcExpired = f.dlc && f.dlcType === "DLC" && daysUntil(f.dlc) < 0;
+  const ddmExpired = f.dlc && f.dlcType === "DDM" && daysUntil(f.dlc) < 0;
+
   const submit = async () => {
     if (!f.product.trim()) return alert("Indique le nom du produit.");
-    if (isNew && !f.photoId && !confirm("Aucune photo de l'étiquette. Enregistrer quand même ?")) return;
+    if (isNew && !f.photoId && f.kind !== "homemade" && !confirm("Aucune photo de l'étiquette. Enregistrer quand même ?")) return;
     const { atLocal, stockQty, ...rest } = f;
     const rec = { ...rest, product: f.product.trim(), at: new Date(atLocal).toISOString(), dlcAfter };
+    // DLC dépassée : le produit ne peut pas être utilisé (il doit être retiré et jeté).
+    if (isNew && dlcExpired) {
+      if (!confirm("DLC dépassée : ce produit est INTERDIT à l'utilisation.\n\nL'enregistrer comme JETÉ ?")) return;
+      rec.status = "thrown";
+      rec.comment = [rec.comment, "Jeté : DLC dépassée"].filter(Boolean).join(" — ");
+      rec.closedAt = new Date().toISOString();
+    }
     // Déduction automatique du stock
     const dq = parseNum(stockQty);
     if (isNew && stockItem && Number.isFinite(dq) && dq > 0) {
@@ -207,7 +239,13 @@ function TraceForm({ initial, onClose }) {
         </div>
       }
     >
-      <PhotoInput photoId={f.photoId} onChange={set("photoId")} />
+      <Chips
+        options={Object.entries(TRACE_KINDS).map(([value, k]) => ({ value, label: k.label }))}
+        value={f.kind}
+        onChange={(v) => v && setF((s) => ({ ...s, kind: v, keepDays: TRACE_KINDS[v].days }))}
+      />
+      <div className="alert info">ℹ️ {kind.rule}</div>
+      <PhotoInput photoId={f.photoId} onChange={set("photoId")} label={f.kind === "homemade" ? "Photo (facultatif)" : "Photo de l'étiquette"} />
       <Field label="Produit *">
         <input className="input" list="trace-names" value={f.product} onChange={set("product")} placeholder="ex : Poulet mariné, Sauce blanche…" />
         <datalist id="trace-names">
@@ -223,23 +261,40 @@ function TraceForm({ initial, onClose }) {
         <Field label="Fournisseur">
           <input className="input" value={f.supplier} onChange={set("supplier")} />
         </Field>
-        <Field label="DLC / DDM fabricant">
+        <Field label={f.kind === "homemade" ? "DLC ingrédient le plus court" : "Date sur l'étiquette"}>
           <input className="input" type="date" value={f.dlc} onChange={set("dlc")} />
+          <Chips
+            options={[{ value: "DLC", label: "DLC (à consommer jusqu'au)" }, { value: "DDM", label: "DDM (de préférence avant)" }]}
+            value={f.dlcType}
+            onChange={(v) => v && set("dlcType")(v)}
+          />
         </Field>
         <Field label="Quantité">
           <input className="input" value={f.qty} onChange={set("qty")} placeholder="ex : 2 kg, 1 seau" />
         </Field>
       </div>
-      <Field label="Sorti / ouvert le">
+      {dlcExpired && <div className="alert ko">DLC dépassée : produit interdit à l'utilisation, à retirer et jeter.</div>}
+      {ddmExpired && <div className="alert warn">DDM dépassée : le produit reste consommable si l'emballage est intact et l'aspect normal (qualité moindre).</div>}
+      <Field label={{ open: "Ouvert le", homemade: "Fabriqué le", thawed: "Mis à décongeler le" }[f.kind] || "Date"}>
         <input className="input" type="datetime-local" value={f.atLocal} onChange={set("atLocal")} />
       </Field>
-      <Field label="Conservation après ouverture" hint={dlcAfter ? `À consommer avant le ${fmtDate(dlcAfter)}` : "Pas de DLC secondaire"}>
+      <Field
+        label="Durée de conservation"
+        hint={
+          dlcAfter
+            ? `À consommer avant le ${fmtDate(f.dlc && f.dlcType === "DLC" && f.dlc < dlcAfter ? f.dlc : dlcAfter)}${f.dlc && f.dlcType === "DLC" && f.dlc < dlcAfter ? " (DLC d'origine plus courte)" : ""}`
+            : "Pas de DLC secondaire"
+        }
+      >
         <Chips
           options={[{ value: 1, label: "J+1" }, { value: 2, label: "J+2" }, { value: 3, label: "J+3" }, { value: 5, label: "J+5" }, { value: 7, label: "J+7" }]}
           value={Number(f.keepDays) || null}
           onChange={(v) => set("keepDays")(v || "")}
         />
       </Field>
+      {Number(f.keepDays) > 3 && f.kind !== "open" && (
+        <div className="alert warn">Plus de 3 jours : seulement si une étude de durée de vie ou le fabricant le permet.</div>
+      )}
       {isNew && data.stock.length > 0 && (
         <div className="grid2">
           <Field label="Déduire du stock">

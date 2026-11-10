@@ -148,7 +148,7 @@ export async function pdfTemperatures(data, from, to) {
       { title: "Équipement", w: 35, get: (t) => t.equipmentName },
       { title: "T° relevée", w: 18, get: (t) => `${fmtNum(t.value)} °C`, color: (t) => (t.ok ? null : RED) },
       { title: "Seuils", w: 20, get: (t) => `${fmtNum(t.min)} / ${fmtNum(t.max)} °C` },
-      { title: "Conforme", w: 15, get: (t) => (t.ok ? "Oui" : "NON"), color: (t) => (t.ok ? null : RED) },
+      { title: "Conforme", w: 15, get: (t) => ({ ok: "Oui", warn: "Toléré", ko: "NON" }[t.status || (t.ok ? "ok" : "ko")]), color: (t) => (t.ok ? null : RED) },
       { title: "Action corrective / commentaire", w: 70, get: (t) => [t.action, t.comment].filter(Boolean).join(" - ") },
       { title: "Par", w: 15, get: (t) => t.by },
     ],
@@ -191,7 +191,7 @@ export async function pdfOil(data, from, to) {
       { title: "Date", w: 20, get: (t) => fmtDate(t.at) },
       { title: "Heure", w: 12, get: (t) => fmtTime(t.at) },
       { title: "Friteuse", w: 30, get: (t) => t.fryerName },
-      { title: "Opération", w: 25, get: (t) => (t.kind === "change" ? "CHANGEMENT" : "Contrôle") },
+      { title: "Opération", w: 25, get: (t) => ({ change: "CHANGEMENT", control: "Contrôle", filter: "Filtrage" }[t.kind] || t.kind) },
       { title: "Comp. polaires", w: 20, get: (t) => (Number.isFinite(t.tpm) ? `${fmtNum(t.tpm)} %` : ""), color: (t) => (t.tpm >= lim ? RED : null) },
       { title: "T° huile", w: 15, get: (t) => (Number.isFinite(t.temp) ? `${fmtNum(t.temp)} °C` : "") },
       { title: "Aspect", w: 20, get: (t) => aspect[t.aspect] || "" },
@@ -240,6 +240,99 @@ export async function pdfStock(data, from, to) {
       { title: "Par", w: 15, get: (m) => m.by },
     ],
     moves,
+    M + 18
+  );
+  return finish(ctx.doc, shop);
+}
+
+export async function pdfProcess(data, from, to) {
+  const shop = data.settings.shopName || "O'Délices";
+  const ctx = makeDoc("Cuisson, refroidissement, remise en température, maintien chaud", period(from, to), shop);
+  const labels = { cooling: "Refroidissement", reheat: "Remise en T°", hot: "Maintien chaud", cook: "Cuisson à coeur" };
+  const rows = data.process.filter((t) => t.state === "done" && inPeriod(t.at, from, to)).sort(sortAt);
+  ctx.doc.setFontSize(8.5);
+  ctx.doc.text("Règles : refroidissement de +63 °C à +10 °C en moins de 2 h ; remise en température à +63 °C en moins d'1 h ; maintien au chaud et cuisson : +63 °C minimum à coeur.", M, M + 12);
+  await table(
+    ctx,
+    [
+      { title: "Date", w: 20, get: (t) => fmtDate(t.at) },
+      { title: "Opération", w: 25, get: (t) => labels[t.kind] },
+      { title: "Produit", w: 40, get: (t) => t.product },
+      { title: "Début", w: 25, get: (t) => (t.startAt ? `${fmtTime(t.startAt)} - ${fmtNum(t.startTemp)} °C` : "") },
+      { title: "Fin / mesure", w: 25, get: (t) => `${fmtTime(t.at)} - ${fmtNum(t.endTemp)} °C` },
+      { title: "Durée", w: 13, get: (t) => (Number.isFinite(t.minutes) ? `${t.minutes} min` : "") },
+      { title: "Conforme", w: 15, get: (t) => (t.ok ? "Oui" : "NON"), color: (t) => (t.ok ? null : RED) },
+      { title: "Action corrective / commentaire", w: 55, get: (t) => [t.action, t.comment].filter(Boolean).join(" - ") },
+      { title: "Par", w: 12, get: (t) => t.by },
+    ],
+    rows,
+    M + 16
+  );
+  return finish(ctx.doc, shop);
+}
+
+export async function pdfReceptions(data, from, to) {
+  const shop = data.settings.shopName || "O'Délices";
+  const ctx = makeDoc("Contrôles à réception des marchandises", period(from, to), shop);
+  const dec = { accepted: "Acceptée", partial: "Réserves", refused: "REFUSÉE" };
+  const rows = [];
+  for (const r of data.receptions.filter((t) => inPeriod(t.at, from, to)).sort(sortAt))
+    for (const l of r.lines || []) rows.push({ r, l });
+  const checks = (r) => {
+    const bad = Object.entries(r.checks || {}).filter(([, v]) => !v).map(([k]) => ({ vehicle: "véhicule", packaging: "emballage", labels: "étiquetage", dlc: "DLC" }[k]));
+    return bad.length ? `NC : ${bad.join(", ")}` : "OK";
+  };
+  await table(
+    ctx,
+    [
+      { title: "BL", w: 20, img: ({ r, l }) => (r.lines[0] === l ? loadPhoto(r.photoId) : null) },
+      { title: "Date", w: 22, get: ({ r }) => `${fmtDate(r.at)} ${fmtTime(r.at)}` },
+      { title: "Fournisseur", w: 28, get: ({ r }) => r.supplier },
+      { title: "Produit", w: 35, get: ({ l }) => `${l.name}${l.qty ? ` (${fmtNum(l.qty, 2)} ${l.unit})` : ""}` },
+      { title: "Lot", w: 20, get: ({ l }) => l.lot },
+      { title: "T°", w: 14, get: ({ l }) => (Number.isFinite(l.temp) ? `${fmtNum(l.temp)} °C` : ""), color: ({ l }) => (l.tempOk === false ? RED : null) },
+      { title: "DLC", w: 18, get: ({ l }) => (l.dlc ? fmtDate(l.dlc) : ""), color: ({ l }) => (l.dlcOk === false ? RED : null) },
+      { title: "Produit", w: 16, get: ({ l }) => (l.accepted ? "Accepté" : "REFUSÉ"), color: ({ l }) => (l.accepted ? null : RED) },
+      { title: "Contrôles", w: 25, get: ({ r }) => checks(r) },
+      { title: "Décision / commentaire", w: 40, get: ({ r }) => [dec[r.decision], r.comment].filter(Boolean).join(" - ") },
+      { title: "Par", w: 12, get: ({ r }) => r.by },
+    ],
+    rows,
+    M + 12
+  );
+  return finish(ctx.doc, shop);
+}
+
+export async function pdfCleaning(data, from, to) {
+  const shop = data.settings.shopName || "O'Délices";
+  const ctx = makeDoc("Plan de nettoyage et de désinfection", period(from, to), shop);
+  const freq = { service: "Après chaque service", daily: "Tous les jours", weekly: "Toutes les semaines", monthly: "Tous les mois" };
+  await table(
+    ctx,
+    [
+      { title: "À nettoyer", w: 60, get: (t) => t.name },
+      { title: "Fréquence", w: 35, get: (t) => freq[t.freq] },
+      { title: "Produit", w: 60, get: (t) => t.product },
+    ],
+    [...data.cleanTasks].sort((a, b) => (a.order ?? 0) - (b.order ?? 0)),
+    M + 12
+  );
+  ctx.doc.addPage();
+  ctx.header();
+  ctx.doc.setFont("helvetica", "bold");
+  ctx.doc.setFontSize(11);
+  ctx.doc.text("Enregistrements", M, M + 14);
+  ctx.doc.setFont("helvetica", "normal");
+  await table(
+    ctx,
+    [
+      { title: "Date", w: 22, get: (l) => fmtDate(l.at) },
+      { title: "Heure", w: 14, get: (l) => fmtTime(l.at) },
+      { title: "Tâche", w: 70, get: (l) => l.name },
+      { title: "Produit", w: 50, get: (l) => l.product },
+      { title: "Par", w: 15, get: (l) => l.by },
+    ],
+    data.cleanLogs.filter((t) => inPeriod(t.at, from, to)).sort(sortAt),
     M + 18
   );
   return finish(ctx.doc, shop);

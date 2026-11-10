@@ -1,5 +1,6 @@
 import { useMemo, useState } from "react";
-import { Package, Plus, Minus, Search, ShoppingCart, Trash2, CheckCircle2, History } from "lucide-react";
+import { Package, Plus, Minus, Search, ShoppingCart, Trash2, CheckCircle2, History, Truck } from "lucide-react";
+import ReceptionForm, { ReceptionList } from "./Reception.jsx";
 import { useData } from "./store.jsx";
 import { Sheet, Field, Chips, Badge, Empty } from "./ui.jsx";
 import { daysUntil, fmtDate, fmtDateTime, fmtNum, parseNum, shareText } from "./utils.js";
@@ -24,9 +25,11 @@ export default function Stock() {
   const [edit, setEdit] = useState(null);
   const [move, setMove] = useState(null);
   const [showMoves, setShowMoves] = useState(false);
+  const [reception, setReception] = useState(null);
 
   const items = useMemo(() => [...data.stock].sort((a, b) => a.name.localeCompare(b.name)), [data.stock]);
   const low = items.filter(isLow);
+  const expired = items.filter((s) => s.dlc && (s.qty || 0) > 0 && daysUntil(s.dlc) < 0);
   const filtered = items.filter(
     (s) => (!cat || s.category === cat) && (!onlyLow || isLow(s)) && (!q || `${s.name} ${s.location} ${s.supplier}`.toLowerCase().includes(q.toLowerCase()))
   );
@@ -48,10 +51,20 @@ export default function Stock() {
             {items.length} produit(s) · {low.length} en alerte
           </div>
         </div>
-        <button className="btn btn-primary" onClick={() => setEdit({})}>
-          <Plus size={20} /> Produit
-        </button>
+        <div className="col gap-s">
+          <button className="btn btn-primary" onClick={() => setReception({})}>
+            <Truck size={20} /> Livraison
+          </button>
+          <button className="btn btn-sm btn-ghost" onClick={() => setEdit({})}>
+            <Plus size={16} /> Produit
+          </button>
+        </div>
       </div>
+      {expired.length > 0 && (
+        <div className="alert ko">
+          DLC dépassée — à retirer et jeter : {expired.map((s) => s.name).join(", ")}
+        </div>
+      )}
 
       {low.length > 0 && (
         <div className="card alert-card">
@@ -107,6 +120,11 @@ export default function Stock() {
         ))}
       </div>
 
+      <h3 className="section-title">Réceptions récentes</h3>
+      <ReceptionList onOpen={setReception} />
+      <p className="muted small rule">ℹ️ PEPS (premier entré, premier sorti) : ranger les nouvelles livraisons derrière et utiliser d'abord les produits dont la DLC est la plus proche.</p>
+
+      {reception && <ReceptionForm initial={reception} onClose={() => setReception(null)} />}
       {edit && <StockForm initial={edit} onClose={() => setEdit(null)} onMove={(kind) => { setMove({ item: edit, kind }); setEdit(null); }} />}
       {move && <MoveForm {...move} onClose={() => setMove(null)} />}
       {showMoves && <MovesSheet onClose={() => setShowMoves(false)} />}
@@ -178,6 +196,22 @@ function StockForm({ initial, onClose, onMove }) {
         </div>
       }
     >
+      {!isNew && initial.dlc && daysUntil(initial.dlc) < 0 && (initial.qty || 0) > 0 && (
+        <div className="alert ko col gap-s">
+          DLC dépassée ({fmtDate(initial.dlc)}) : produit interdit à l'utilisation.
+          <button
+            className="btn btn-ko"
+            onClick={async () => {
+              if (!confirm(`Retirer ${fmtNum(initial.qty, 2)} ${initial.unit} de « ${initial.name} » (jeté) ?`)) return;
+              await save("stock", { ...initial, qty: 0, dlc: "" });
+              await save("moves", { stockId: initial.id, name: initial.name, kind: "loss", qty: -(initial.qty || 0), unit: initial.unit, reason: "Jeté : DLC dépassée", at: new Date().toISOString(), by: data.settings.operator || "" });
+              onClose();
+            }}
+          >
+            <Trash2 size={18} /> Retirer et jeter
+          </button>
+        </div>
+      )}
       {!isNew && (
         <div className="row gap">
           <button className="btn btn-ghost btn-block" onClick={() => onMove("out")}><Minus size={18} /> Sortie</button>

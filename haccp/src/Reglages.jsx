@@ -5,9 +5,9 @@ import { useData } from "./store.jsx";
 import { Sheet, Field, Chips } from "./ui.jsx";
 import { EQUIP_TYPES, exportAll, importAll } from "./db.js";
 import { addDays, dayKey, fmtNum, parseNum, saveFile, todayKey } from "./utils.js";
-import { pdfOil, pdfStock, pdfTemperatures, pdfTrace } from "./pdf.js";
+import { pdfCleaning, pdfOil, pdfProcess, pdfReceptions, pdfStock, pdfTemperatures, pdfTrace } from "./pdf.js";
 
-export default function Reglages() {
+export default function Reglages({ go }) {
   const { data, save, remove, updateSettings, reload } = useData();
   const s = data.settings;
   const [eqEdit, setEqEdit] = useState(null);
@@ -31,8 +31,8 @@ export default function Reglages() {
   const report = async (kind) => {
     setBusy(kind);
     try {
-      const fn = { temps: pdfTemperatures, trace: pdfTrace, oil: pdfOil, stock: pdfStock }[kind];
-      const name = { temps: "temperatures", trace: "tracabilite", oil: "huile", stock: "stock" }[kind];
+      const fn = { temps: pdfTemperatures, process: pdfProcess, trace: pdfTrace, oil: pdfOil, reception: pdfReceptions, clean: pdfCleaning, stock: pdfStock }[kind];
+      const name = { temps: "temperatures", process: "cuisson-refroidissement", trace: "tracabilite", oil: "huile", reception: "receptions", clean: "nettoyage", stock: "stock" }[kind];
       const blob = await fn(data, from, to);
       await saveFile(blob, `haccp-${name}-${from}_${to}.pdf`);
     } catch (e) {
@@ -73,6 +73,7 @@ export default function Reglages() {
 
   return (
     <div className="page">
+      <button className="btn btn-ghost" onClick={() => go("memo")}>📖 Mémo des règles HACCP appliquées</button>
       <h3 className="section-title">Général</h3>
       <div className="card pad">
         <Field label="Nom de l'établissement">
@@ -155,8 +156,11 @@ export default function Reglages() {
         <div className="grid2">
           {[
             ["temps", "Températures"],
+            ["process", "Cuisson / refroid."],
             ["trace", "Traçabilité (photos)"],
             ["oil", "Huile de friture"],
+            ["reception", "Réceptions"],
+            ["clean", "Nettoyage"],
             ["stock", "Stock"],
           ].map(([k, l]) => (
             <button key={k} className="btn btn-ghost" disabled={!!busy} onClick={() => report(k)}>
@@ -237,7 +241,7 @@ function EquipmentForm({ initial, onClose, onSave, onRemove }) {
         <Field label="T° minimum (°C)"><input className="input" value={f.min} onChange={set("min")} /></Field>
         <Field label="T° maximum (°C)"><input className="input" value={f.max} onChange={set("max")} /></Field>
       </div>
-      <p className="muted small">Repères : produits frais 0 à +4 °C, viande hachée/poisson 0 à +2 °C, surgelés -18 °C ou moins.</p>
+      <div className="alert info">ℹ️ {EQUIP_TYPES[f.type]?.rule}</div>
     </Sheet>
   );
 }

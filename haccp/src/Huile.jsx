@@ -1,5 +1,5 @@
 import { useMemo, useState } from "react";
-import { Droplets, RefreshCw, Gauge, Trash2, CheckCircle2 } from "lucide-react";
+import { Droplets, RefreshCw, Gauge, Trash2, CheckCircle2, Filter } from "lucide-react";
 import { useData } from "./store.jsx";
 import { Sheet, Field, Chips, Badge, Empty } from "./ui.jsx";
 import { dayKey, daysSince, fmtDate, fmtDateTime, fmtDayLong, fmtTime, fmtNum, parseNum, toLocalInput, todayKey } from "./utils.js";
@@ -9,6 +9,15 @@ export const ASPECTS = [
   { value: "moyen", label: "À surveiller", tone: "warn" },
   { value: "mauvais", label: "À changer", tone: "ko" },
 ];
+
+// Règles : décret n° 2008-184 du 26/02/2008 (huile impropre au-delà de 25 % de composés polaires),
+// règlement (UE) 2017/2158 acrylamide (friture à 175 °C maximum), GBPH (zone dégradée 20-25 %).
+export const OIL_RULES = {
+  tpmWarn: 20,
+  maxFryTemp: 175,
+  text: "Composés polaires : moins de 20 % = bonne ; 20 à 25 % = dégradée, changer bientôt ; 25 % ou plus = huile impropre, INTERDITE (décret 2008-184). Friture à 175 °C maximum (acrylamide, règlement UE 2017/2158). Filtrer/écumer régulièrement, ne pas rajouter d'huile neuve sur une huile usée.",
+};
+const KIND_LABEL = { change: "Changement d'huile", control: "Contrôle", filter: "Filtrage / écumage" };
 
 export function fryerStatus(fryer, oil, settings) {
   const list = oil.filter((o) => o.fryerId === fryer.id).sort((a, b) => b.at.localeCompare(a.at));
@@ -22,13 +31,21 @@ export function fryerStatus(fryer, oil, settings) {
   const alerts = [];
   if (!lastChange) alerts.push({ tone: "warn", text: "Aucun changement enregistré" });
   else if (days >= maxDays) alerts.push({ tone: "ko", text: `Huile changée il y a ${days} j (max ${maxDays} j)` });
-  if (ctrlAfterChange && Number.isFinite(ctrlAfterChange.tpm) && ctrlAfterChange.tpm >= tpmMax)
-    alerts.push({ tone: "ko", text: `Composés polaires ${fmtNum(ctrlAfterChange.tpm)} % ≥ ${tpmMax} % : changer l'huile` });
-  else if (ctrlAfterChange && ctrlAfterChange.aspect === "mauvais") alerts.push({ tone: "ko", text: "Contrôle : huile à changer" });
-  else if (ctrlAfterChange && Number.isFinite(ctrlAfterChange.tpm) && ctrlAfterChange.tpm >= tpmMax - 3)
-    alerts.push({ tone: "warn", text: `Composés polaires ${fmtNum(ctrlAfterChange.tpm)} % — proche de la limite` });
+  const forbidden =
+    !!ctrlAfterChange && ((Number.isFinite(ctrlAfterChange.tpm) && ctrlAfterChange.tpm >= tpmMax) || ctrlAfterChange.aspect === "mauvais");
+  if (forbidden)
+    alerts.push({
+      tone: "ko",
+      text: Number.isFinite(ctrlAfterChange.tpm) && ctrlAfterChange.tpm >= tpmMax
+        ? `NE PAS UTILISER : ${fmtNum(ctrlAfterChange.tpm)} % de composés polaires (max ${tpmMax} %) — changer l'huile`
+        : "NE PAS UTILISER : huile à changer",
+    });
+  else if (ctrlAfterChange && Number.isFinite(ctrlAfterChange.tpm) && ctrlAfterChange.tpm >= OIL_RULES.tpmWarn)
+    alerts.push({ tone: "warn", text: `Huile dégradée (${fmtNum(ctrlAfterChange.tpm)} %) — prévoir le changement` });
+  if (ctrlAfterChange && Number.isFinite(ctrlAfterChange.temp) && ctrlAfterChange.temp > OIL_RULES.maxFryTemp)
+    alerts.push({ tone: "warn", text: `Température ${fmtNum(ctrlAfterChange.temp)} °C : baisser à 175 °C max` });
   if (!controlledToday) alerts.push({ tone: "warn", text: "Pas de contrôle aujourd'hui" });
-  return { list, lastChange, lastControl, days, maxDays, controlledToday, alerts };
+  return { list, lastChange, lastControl, days, maxDays, controlledToday, alerts, forbidden };
 }
 
 export default function Huile() {
@@ -53,7 +70,7 @@ export default function Huile() {
       {fryers.map((fr) => {
         const st = fryerStatus(fr, data.oil, data.settings);
         return (
-          <div key={fr.id} className="card fryer">
+          <div key={fr.id} className={"card fryer" + (st.forbidden ? " forbidden" : "")}>
             <div className="eq-head">
               <div>
                 <div className="eq-name">{fr.name}</div>
@@ -84,6 +101,9 @@ export default function Huile() {
               </div>
             )}
             <div className="row gap">
+              <button className="btn btn-ghost" onClick={() => setForm({ fryer: fr, kind: "filter" })} aria-label="Filtrage">
+                <Filter size={20} />
+              </button>
               <button className="btn btn-ghost btn-block" onClick={() => setForm({ fryer: fr, kind: "control" })}>
                 <Gauge size={20} /> Contrôle
               </button>
@@ -95,6 +115,7 @@ export default function Huile() {
         );
       })}
 
+      <div className="muted small rule">ℹ️ {OIL_RULES.text}</div>
       <h3 className="section-title">Historique</h3>
       {byDay.length === 0 && <Empty icon={Droplets}>Aucun enregistrement.</Empty>}
       {byDay.map(([k, items]) => (
@@ -103,10 +124,10 @@ export default function Huile() {
           <div className="card list">
             {items.map((o) => (
               <button key={o.id} className="list-row" onClick={() => setDetail(o)}>
-                <span className={"oil-ico " + o.kind}>{o.kind === "change" ? <RefreshCw size={18} /> : <Gauge size={18} />}</span>
+                <span className={"oil-ico " + o.kind}>{o.kind === "change" ? <RefreshCw size={18} /> : o.kind === "filter" ? <Filter size={18} /> : <Gauge size={18} />}</span>
                 <span className="list-main">
                   <strong>
-                    {o.kind === "change" ? "Changement d'huile" : "Contrôle"} — {o.fryerName}
+                    {KIND_LABEL[o.kind]} — {o.fryerName}
                   </strong>
                   <span className="muted small">
                     {fmtTime(o.at)}
@@ -126,7 +147,7 @@ export default function Huile() {
       {form && <OilForm {...form} onClose={() => setForm(null)} />}
       {detail && (
         <Sheet
-          title={detail.kind === "change" ? "Changement d'huile" : "Contrôle d'huile"}
+          title={KIND_LABEL[detail.kind]}
           onClose={() => setDetail(null)}
           footer={
             <button
@@ -177,25 +198,39 @@ function OilForm({ fryer, kind, onClose }) {
   const tpmMax = Number(data.settings.oilTpmMax || 25);
 
   const submit = async () => {
+    const at = new Date(f.atLocal).toISOString();
+    const bad = kind === "control" && ((Number.isFinite(tpm) && tpm >= tpmMax) || f.aspect === "mauvais");
     await save("oil", {
       fryerId: fryer.id,
       fryerName: fryer.name,
       kind,
-      at: new Date(f.atLocal).toISOString(),
+      at,
       by: f.by.trim(),
       tpm: Number.isFinite(tpm) ? tpm : null,
       temp: Number.isFinite(parseNum(f.temp)) ? parseNum(f.temp) : null,
-      aspect: f.aspect || null,
+      aspect: kind === "control" && Number.isFinite(tpm) && tpm >= tpmMax ? "mauvais" : f.aspect || null,
       liters: Number.isFinite(parseNum(f.liters)) ? parseNum(f.liters) : null,
       oilType: f.oilType.trim(),
       comment: f.comment.trim(),
     });
+    if (bad && confirm("Huile impropre : elle ne doit plus être utilisée.\n\nAs-tu changé l'huile maintenant ? (OK = enregistrer le changement)")) {
+      await save("oil", {
+        fryerId: fryer.id,
+        fryerName: fryer.name,
+        kind: "change",
+        at: new Date(new Date(at).getTime() + 60000).toISOString(),
+        by: f.by.trim(),
+        liters: fryer.capacity || null,
+        oilType: lastType,
+        comment: "Changement suite au contrôle",
+      });
+    }
     onClose();
   };
 
   return (
     <Sheet
-      title={`${kind === "change" ? "Changement d'huile" : "Contrôle"} — ${fryer.name}`}
+      title={`${KIND_LABEL[kind]} — ${fryer.name}`}
       onClose={onClose}
       footer={
         <button className="btn btn-primary btn-block" onClick={submit}>
@@ -221,11 +256,15 @@ function OilForm({ fryer, kind, onClose }) {
               <input className="input" inputMode="decimal" value={f.temp} onChange={set("temp")} placeholder="ex : 175" />
             </Field>
           </div>
-          {Number.isFinite(tpm) && tpm >= tpmMax && <div className="alert ko">Au-delà de {tpmMax} % l'huile doit être changée.</div>}
+          {Number.isFinite(tpm) && tpm >= tpmMax && <div className="alert ko">{tpmMax} % ou plus : huile impropre à la consommation, à changer immédiatement.</div>}
+          {Number.isFinite(tpm) && tpm >= OIL_RULES.tpmWarn && tpm < tpmMax && <div className="alert warn">Entre 20 et {tpmMax} % : huile dégradée, prévoir le changement.</div>}
+          {Number.isFinite(parseNum(f.temp)) && parseNum(f.temp) > OIL_RULES.maxFryTemp && <div className="alert warn">Au-dessus de 175 °C : baisser le thermostat (acrylamide).</div>}
           <Field label="Aspect / odeur / couleur">
             <Chips options={ASPECTS} value={f.aspect} onChange={set("aspect")} />
           </Field>
         </>
+      ) : kind === "filter" ? (
+        <p className="muted small">Filtrage de l'huile et retrait des résidus (écumage) : prolonge la durée de vie de l'huile.</p>
       ) : (
         <div className="grid2">
           <Field label="Quantité (L)">
@@ -239,7 +278,7 @@ function OilForm({ fryer, kind, onClose }) {
       <Field label="Commentaire">
         <input className="input" value={f.comment} onChange={set("comment")} />
       </Field>
-      {kind === "change" && <p className="muted small">Pense à filtrer l'huile et nettoyer la cuve.</p>}
+      {kind === "change" && <p className="muted small">Vider entièrement la cuve, la nettoyer, puis remplir d'huile neuve (ne pas mélanger avec l'ancienne).</p>}
     </Sheet>
   );
 }

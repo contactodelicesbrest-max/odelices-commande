@@ -1,0 +1,287 @@
+import { useEffect, useMemo, useState } from "react";
+import { Flame, Snowflake, RotateCcw, ThermometerSun, CheckCircle2, Trash2, Timer } from "lucide-react";
+import { useData } from "./store.jsx";
+import { Sheet, Field, Chips, Badge, Empty, TempInput } from "./ui.jsx";
+import { fmtDateTime, fmtNum, fmtTime, parseNum, toLocalInput } from "./utils.js";
+
+// Règles (arrêté du 21/12/2009 annexe IV, GBPH restauration) :
+// - Refroidissement : passer de +63 °C à +10 °C à cœur en moins de 2 h, puis stocker à +3 °C max.
+// - Remise en température : atteindre +63 °C à cœur en moins d'1 h.
+// - Maintien au chaud : +63 °C minimum à cœur.
+// - Cuisson : +63 °C minimum à cœur ; +70 °C conseillé pour volailles et viandes hachées.
+export const PROCESS = {
+  cooling: {
+    label: "Refroidissement rapide",
+    icon: Snowflake,
+    twoStep: true,
+    maxMinutes: 120,
+    rule: "Passer de +63 °C à moins de +10 °C à cœur en moins de 2 h (cellule de refroidissement), puis stocker à +3 °C maximum. Produit à consommer sous 3 jours.",
+    check: (r) => r.endTemp <= 10 && r.minutes <= 120,
+    fail: ["Produit jeté", "Produit consommé immédiatement (servi chaud)"],
+  },
+  reheat: {
+    label: "Remise en température",
+    icon: RotateCcw,
+    twoStep: true,
+    maxMinutes: 60,
+    rule: "Atteindre +63 °C à cœur en moins d'1 h. Ne réchauffer qu'une seule fois.",
+    check: (r) => r.endTemp >= 63 && r.minutes <= 60,
+    fail: ["Réchauffage prolongé jusqu'à +63 °C", "Produit jeté"],
+  },
+  hot: {
+    label: "Maintien au chaud",
+    icon: ThermometerSun,
+    rule: "+63 °C minimum à cœur jusqu'au service. En dessous : remonter à +63 °C en moins d'1 h, sinon jeter.",
+    check: (r) => r.endTemp >= 63,
+    fail: ["Remis à +63 °C en moins d'1 h", "Produit jeté"],
+  },
+  cook: {
+    label: "Cuisson à cœur",
+    icon: Flame,
+    rule: "+63 °C minimum à cœur. Conseillé : +70 °C pour volailles, viandes hachées, broche kebab (tranches).",
+    check: (r) => r.endTemp >= (r.target || 63),
+    fail: ["Cuisson prolongée jusqu'à la bonne température", "Produit jeté"],
+  },
+};
+
+export const minutesBetween = (a, b) => Math.round((new Date(b) - new Date(a)) / 60000);
+
+export function runningProcesses(list) {
+  return list.filter((r) => r.state === "running");
+}
+
+export default function Process() {
+  const { data, remove } = useData();
+  const [form, setForm] = useState(null);
+  const [detail, setDetail] = useState(null);
+  const [, tick] = useState(0);
+  useEffect(() => {
+    const t = setInterval(() => tick((x) => x + 1), 30000);
+    return () => clearInterval(t);
+  }, []);
+  const list = useMemo(() => [...data.process].sort((a, b) => (b.startAt || b.at).localeCompare(a.startAt || a.at)), [data.process]);
+  const running = runningProcesses(list);
+  const recent = list.filter((r) => r.state !== "running").slice(0, 15);
+
+  return (
+    <>
+      <h3 className="section-title">Cuisson, refroidissement, maintien chaud</h3>
+      <div className="process-btns">
+        {Object.entries(PROCESS).map(([k, p]) => (
+          <button key={k} className="btn btn-ghost" onClick={() => setForm({ kind: k })}>
+            <p.icon size={18} /> {p.label}
+          </button>
+        ))}
+      </div>
+      {running.map((r) => {
+        const p = PROCESS[r.kind];
+        const elapsed = minutesBetween(r.startAt, new Date());
+        const late = elapsed > p.maxMinutes;
+        return (
+          <div key={r.id} className={"card running " + (late ? "late" : "")}>
+            <Timer size={22} />
+            <div className="list-main">
+              <strong>
+                {p.label} — {r.product}
+              </strong>
+              <span className="small">
+                Démarré à {fmtTime(r.startAt)} ({fmtNum(r.startTemp)} °C) · {elapsed} min / {p.maxMinutes} min max
+              </span>
+              {late && <span className="small ko-text">Temps dépassé !</span>}
+            </div>
+            <button className="btn btn-sm btn-primary" onClick={() => setForm({ kind: r.kind, initial: r })}>
+              Terminer
+            </button>
+          </div>
+        );
+      })}
+      {recent.length > 0 && (
+        <div className="card list">
+          {recent.map((r) => {
+            const p = PROCESS[r.kind];
+            return (
+              <button key={r.id} className="list-row" onClick={() => setDetail(r)}>
+                <p.icon size={20} className="muted" />
+                <span className="list-main">
+                  <strong>{r.product}</strong>
+                  <span className="muted small">
+                    {p.label} · {fmtDateTime(r.at)}
+                    {Number.isFinite(r.minutes) && ` · ${r.minutes} min`}
+                    {r.by && ` · ${r.by}`}
+                  </span>
+                  {!r.ok && r.action && <span className="small ko-text">↳ {r.action}</span>}
+                </span>
+                <span className={"temp-val " + (r.ok ? "ok" : "ko")}>{fmtNum(r.endTemp)} °C</span>
+              </button>
+            );
+          })}
+        </div>
+      )}
+      {!recent.length && !running.length && <p className="muted small">Aucun contrôle de cuisson ou de refroidissement pour l'instant.</p>}
+
+      {form && <ProcessForm {...form} onClose={() => setForm(null)} />}
+      {detail && (
+        <Sheet
+          title={`${PROCESS[detail.kind].label} — ${detail.product}`}
+          onClose={() => setDetail(null)}
+          footer={
+            <button
+              className="btn btn-ghost danger"
+              onClick={async () => {
+                if (confirm("Supprimer ce contrôle ?")) {
+                  await remove("process", detail.id);
+                  setDetail(null);
+                }
+              }}
+            >
+              <Trash2 size={18} /> Supprimer
+            </button>
+          }
+        >
+          <dl className="dl">
+            {detail.startAt && (<><dt>Début</dt><dd>{fmtDateTime(detail.startAt)} — {fmtNum(detail.startTemp)} °C</dd></>)}
+            <dt>{detail.startAt ? "Fin" : "Mesure"}</dt>
+            <dd>{fmtDateTime(detail.at)} — {fmtNum(detail.endTemp)} °C</dd>
+            {Number.isFinite(detail.minutes) && (<><dt>Durée</dt><dd>{detail.minutes} min</dd></>)}
+            <dt>Résultat</dt>
+            <dd className={detail.ok ? "ok-text" : "ko-text"}>{detail.ok ? "Conforme" : "NON conforme"}</dd>
+            {detail.action && (<><dt>Action corrective</dt><dd>{detail.action}</dd></>)}
+            {detail.comment && (<><dt>Commentaire</dt><dd>{detail.comment}</dd></>)}
+            <dt>Par</dt><dd>{detail.by || "—"}</dd>
+          </dl>
+          <p className="muted small">ℹ️ {PROCESS[detail.kind].rule}</p>
+        </Sheet>
+      )}
+    </>
+  );
+}
+
+function ProcessForm({ kind, initial, onClose }) {
+  const { data, save } = useData();
+  const p = PROCESS[kind];
+  const finishing = !!initial;
+  const [f, setF] = useState(() => ({
+    product: initial?.product || "",
+    startLocal: toLocalInput(initial?.startAt || new Date()),
+    startTemp: initial ? String(initial.startTemp) : "",
+    endLocal: toLocalInput(new Date()),
+    endTemp: "",
+    target: initial?.target || 63,
+    action: "",
+    comment: initial?.comment || "",
+    by: initial?.by || data.settings.operator || "",
+  }));
+  const set = (k) => (v) => setF((s) => ({ ...s, [k]: v?.target ? v.target.value : v }));
+  const endTemp = parseNum(f.endTemp);
+  const startTemp = parseNum(f.startTemp);
+  const minutes = p.twoStep ? minutesBetween(new Date(f.startLocal), new Date(f.endLocal)) : null;
+  const rec = { endTemp, minutes, target: Number(f.target) };
+  const ok = Number.isFinite(endTemp) ? p.check(rec) : null;
+  const names = [...new Set(data.process.map((r) => r.product))].sort();
+
+  const base = () => ({
+    ...(initial || {}),
+    kind,
+    product: f.product.trim(),
+    by: f.by.trim(),
+    comment: f.comment.trim(),
+  });
+
+  const start = async () => {
+    if (!f.product.trim()) return alert("Indique le produit.");
+    if (!Number.isFinite(startTemp)) return alert("Indique la température de départ.");
+    await save("process", { ...base(), state: "running", startAt: new Date(f.startLocal).toISOString(), startTemp, at: new Date(f.startLocal).toISOString() });
+    onClose();
+  };
+  const finish = async () => {
+    if (!f.product.trim()) return alert("Indique le produit.");
+    if (!Number.isFinite(endTemp)) return alert("Indique la température mesurée.");
+    if (p.twoStep && !Number.isFinite(startTemp)) return alert("Indique la température de départ.");
+    if (!ok && !f.action) return alert("Produit non conforme : choisis une action corrective.");
+    await save("process", {
+      ...base(),
+      state: "done",
+      startAt: p.twoStep ? new Date(f.startLocal).toISOString() : undefined,
+      startTemp: p.twoStep ? startTemp : undefined,
+      at: new Date(f.endLocal).toISOString(),
+      endTemp,
+      minutes,
+      target: kind === "cook" ? Number(f.target) : undefined,
+      ok,
+      action: ok ? "" : f.action,
+    });
+    onClose();
+  };
+
+  return (
+    <Sheet
+      title={p.label}
+      onClose={onClose}
+      footer={
+        <div className="row gap">
+          {p.twoStep && !finishing && (
+            <button className="btn btn-ghost btn-block" onClick={start}>
+              <Timer size={18} /> Démarrer (finir plus tard)
+            </button>
+          )}
+          <button className="btn btn-primary btn-block" onClick={finish}>
+            <CheckCircle2 size={18} /> {p.twoStep ? "Terminer" : "Enregistrer"}
+          </button>
+        </div>
+      }
+    >
+      <div className="alert info">ℹ️ {p.rule}</div>
+      <Field label="Produit *">
+        <input className="input" list="process-names" value={f.product} onChange={set("product")} placeholder="ex : Poulet curry, Sauce blanche…" />
+        <datalist id="process-names">{names.map((n) => <option key={n} value={n} />)}</datalist>
+      </Field>
+      {kind === "cook" && (
+        <Field label="Température à cœur visée">
+          <Chips options={[{ value: 63, label: "+63 °C (minimum)" }, { value: 70, label: "+70 °C (volaille, haché)" }]} value={Number(f.target)} onChange={(v) => v && set("target")(v)} />
+        </Field>
+      )}
+      {p.twoStep && (
+        <div className="grid2">
+          <Field label="Début">
+            <input className="input" type="datetime-local" value={f.startLocal} onChange={set("startLocal")} disabled={finishing} />
+          </Field>
+          <Field label="T° au début">
+            <TempInput value={f.startTemp} onChange={set("startTemp")} />
+          </Field>
+        </div>
+      )}
+      <div className="grid2">
+        <Field label={p.twoStep ? "Fin" : "Heure de la mesure"}>
+          <input className="input" type="datetime-local" value={f.endLocal} onChange={set("endLocal")} />
+        </Field>
+        <Field label={p.twoStep ? "T° à cœur à la fin" : "T° à cœur"}>
+          <TempInput value={f.endTemp} onChange={set("endTemp")} />
+        </Field>
+      </div>
+      {ok !== null && (
+        <div className={"alert " + (ok ? "ok" : "ko")}>
+          {ok ? "✓ Conforme" : "✗ NON conforme"}
+          {p.twoStep && Number.isFinite(minutes) && ` — ${minutes} min (max ${p.maxMinutes} min)`}
+        </div>
+      )}
+      {ok === false && (
+        <Field label="Action corrective *">
+          <select className="input" value={f.action} onChange={set("action")}>
+            <option value="">Choisir…</option>
+            {p.fail.map((a) => <option key={a}>{a}</option>)}
+            <option>Autre (voir commentaire)</option>
+          </select>
+        </Field>
+      )}
+      <div className="grid2">
+        <Field label="Initiales">
+          <input className="input" value={f.by} onChange={set("by")} maxLength={12} />
+        </Field>
+        <Field label="Commentaire">
+          <input className="input" value={f.comment} onChange={set("comment")} />
+        </Field>
+      </div>
+      {!finishing && p.twoStep && <p className="muted small">Astuce : appuie sur « Démarrer » quand tu commences ; l'appli te rappelle de terminer le contrôle.</p>}
+    </Sheet>
+  );
+}

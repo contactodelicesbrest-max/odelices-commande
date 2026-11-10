@@ -2,8 +2,11 @@
 // fonctionnent sans connexion internet, et peuvent être sauvegardées en JSON.
 
 const DB_NAME = "odelices-haccp";
-const DB_VERSION = 1;
-export const STORES = ["equipments", "temps", "trace", "fryers", "oil", "stock", "moves", "photos", "settings"];
+const DB_VERSION = 2;
+export const STORES = [
+  "equipments", "temps", "trace", "fryers", "oil", "stock", "moves", "photos", "settings",
+  "process", "receptions", "cleanTasks", "cleanLogs",
+];
 
 let dbPromise = null;
 
@@ -81,13 +84,78 @@ export async function importAll(json, { replace = true } = {}) {
 }
 
 // ---------- Données de départ ----------
+// Températures maximales de conservation : arrêté du 21 décembre 2009 (annexe I)
+// et Guide de bonnes pratiques d'hygiène (GBPH) de la restauration.
 export const EQUIP_TYPES = {
-  frigo: { label: "Réfrigérateur", min: 0, max: 4 },
-  congel: { label: "Congélateur", min: -30, max: -18 },
-  chambre: { label: "Chambre froide", min: 0, max: 3 },
-  vitrine: { label: "Vitrine réfrigérée", min: 0, max: 4 },
-  saladette: { label: "Saladette / Tour réfrigéré", min: 0, max: 4 },
+  frigo: {
+    label: "Réfrigérateur produits frais",
+    min: 0, max: 4,
+    rule: "Denrées très périssables (produits laitiers, volailles, crudités, sauces…) : +4 °C maximum.",
+  },
+  prepa: {
+    label: "Préparations cuisinées à l'avance",
+    min: 0, max: 3,
+    rule: "Préparations culinaires élaborées à l'avance : +3 °C maximum (arrêté du 21/12/2009).",
+  },
+  hache: {
+    label: "Viande hachée / poisson frais",
+    min: 0, max: 2,
+    rule: "Viandes hachées : +2 °C ; produits de la pêche frais : 0 à +2 °C (glace fondante).",
+  },
+  chambre: { label: "Chambre froide positive", min: 0, max: 3, rule: "Chambre froide positive : 0 à +3 °C conseillé (+4 °C maximum pour les produits frais)." },
+  vitrine: { label: "Vitrine / saladette réfrigérée", min: 0, max: 4, rule: "Produits exposés réfrigérés : +4 °C maximum." },
+  saladette: { label: "Saladette / tour réfrigéré", min: 0, max: 4, rule: "Produits exposés réfrigérés : +4 °C maximum." },
+  boissons: { label: "Frigo boissons (sans denrées)", min: 0, max: 8, rule: "Boissons uniquement : pas d'exigence réglementaire, +8 °C conseillé." },
+  congel: {
+    label: "Congélateur / surgelés",
+    min: -30, max: -18,
+    rule: "Surgelés et glaces : -18 °C ou moins. Une remontée brève jusqu'à -15 °C est tolérée (dégivrage, chargement).",
+    tolerance: -15,
+  },
+  chaud: {
+    label: "Maintien au chaud (bain-marie, vitrine chaude)",
+    min: 63, max: 100,
+    hot: true,
+    rule: "Plats servis chauds : +63 °C minimum à cœur jusqu'au service.",
+  },
 };
+
+// Actions correctives proposées selon le type d'équipement et l'écart constaté.
+export function correctiveActions(eq, value) {
+  const t = EQUIP_TYPES[eq?.type] || {};
+  if (t.hot)
+    return [
+      "Produits réchauffés à +63 °C en moins d'1 h",
+      "Produits jetés (plus de 2 h sous +63 °C)",
+      "Réglage de l'appareil",
+      "Technicien appelé",
+    ];
+  if (eq?.type === "congel")
+    return value <= (t.tolerance ?? -15)
+      ? ["Dégivrage / chargement en cours — recontrôle prévu", "Porte mal fermée — refermée", "Réglage du thermostat"]
+      : [
+          "Produits décongelés : transférés au frigo et à consommer sous 24 h",
+          "Produits transférés dans un autre congélateur",
+          "Produits jetés",
+          "Technicien appelé",
+        ];
+  return [
+    "Porte mal fermée — refermée, recontrôle prévu",
+    "Réglage du thermostat, recontrôle prévu",
+    "Produits transférés dans un autre frigo",
+    "Produits jetés (température trop élevée trop longtemps)",
+    "Technicien appelé",
+  ];
+}
+
+// "warn" = écart toléré (congélateur entre -18 et -15 °C).
+export function tempStatus(eq, v) {
+  if (!Number.isFinite(v)) return null;
+  if (v >= eq.min && v <= eq.max) return "ok";
+  const t = EQUIP_TYPES[eq.type];
+  if (t?.tolerance !== undefined && v > eq.max && v <= t.tolerance) return "warn";
+  return "ko";
+}
 
 let seedPromise = null;
 export function seedIfEmpty() {
@@ -96,6 +164,13 @@ export function seedIfEmpty() {
 }
 
 async function doSeed() {
+  // Plan de nettoyage par défaut : créé une seule fois (même pour une appli déjà installée).
+  if (!(await getOne("settings", "seed-clean"))) {
+    const now = new Date().toISOString();
+    if (!(await getAll("cleanTasks")).length)
+      await putMany("cleanTasks", DEFAULT_CLEAN_TASKS.map((t, i) => ({ id: uid(), ...t, order: i, createdAt: now, updatedAt: now })));
+    await put("settings", { id: "seed-clean", createdAt: now, updatedAt: now });
+  }
   const eq = await getAll("equipments");
   const settings = await getOne("settings", "main");
   if (!settings) {
@@ -118,3 +193,27 @@ async function doSeed() {
     }
   }
 }
+
+// Plan de nettoyage et de désinfection de départ (modifiable dans l'onglet Nettoyage).
+export const CLEAN_FREQ = {
+  service: { label: "Après chaque service", days: 0.5 },
+  daily: { label: "Tous les jours", days: 1 },
+  weekly: { label: "Toutes les semaines", days: 7 },
+  monthly: { label: "Tous les mois", days: 30 },
+};
+export const DEFAULT_CLEAN_TASKS = [
+  { name: "Plans de travail et planches", freq: "service", product: "Dégraissant + désinfectant alimentaire" },
+  { name: "Broche kebab, trancheuse, couteaux", freq: "service", product: "Dégraissant + désinfectant alimentaire" },
+  { name: "Plaque / grill / plancha", freq: "daily", product: "Dégraissant" },
+  { name: "Sols cuisine", freq: "daily", product: "Détergent désinfectant sols" },
+  { name: "Poubelles et zone déchets", freq: "daily", product: "Désinfectant" },
+  { name: "Lave-mains, savon, essuie-mains", freq: "daily", product: "Désinfectant" },
+  { name: "Poignées de portes et de frigos", freq: "daily", product: "Désinfectant" },
+  { name: "Saladette / vitrine réfrigérée", freq: "daily", product: "Désinfectant alimentaire" },
+  { name: "Intérieur des frigos", freq: "weekly", product: "Désinfectant alimentaire" },
+  { name: "Friteuses (cuve) — à chaque vidange", freq: "weekly", product: "Dégraissant friteuse" },
+  { name: "Murs et carrelage cuisine", freq: "weekly", product: "Dégraissant" },
+  { name: "Hotte et filtres", freq: "monthly", product: "Dégraissant" },
+  { name: "Congélateurs (dégivrage + nettoyage)", freq: "monthly", product: "Désinfectant alimentaire" },
+  { name: "Réserve sèche / étagères", freq: "monthly", product: "Désinfectant" },
+];

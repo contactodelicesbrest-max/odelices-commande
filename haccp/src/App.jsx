@@ -1,7 +1,9 @@
 import { useEffect, useRef, useState } from "react";
 import { Capacitor } from "@capacitor/core";
 import { App as CapApp } from "@capacitor/app";
-import { Home, Thermometer, ClipboardCheck, Droplets, Package, Settings, ArrowLeft, Cloud, CloudOff } from "lucide-react";
+import { Home, Thermometer, ClipboardCheck, Droplets, Package, Settings, ArrowLeft, Cloud, CloudOff, Sparkles } from "lucide-react";
+import Nettoyage from "./Nettoyage.jsx";
+import Memo from "./Memo.jsx";
 import { onCloudStatus } from "./cloud.js";
 import { DataProvider, useData } from "./store.jsx";
 import Accueil from "./Accueil.jsx";
@@ -13,12 +15,16 @@ import Reglages from "./Reglages.jsx";
 
 const TABS = [
   { id: "home", label: "Accueil", icon: Home, C: Accueil },
-  { id: "temps", label: "Températures", icon: Thermometer, C: Temperatures },
-  { id: "trace", label: "Traçabilité", icon: ClipboardCheck, C: Tracabilite },
+  { id: "temps", label: "Temp.", title: "Températures", icon: Thermometer, C: Temperatures },
+  { id: "trace", label: "Traça.", title: "Traçabilité", icon: ClipboardCheck, C: Tracabilite },
   { id: "oil", label: "Huile", icon: Droplets, C: Huile },
+  { id: "clean", label: "Nettoyage", icon: Sparkles, C: Nettoyage },
   { id: "stock", label: "Stock", icon: Package, C: Stock },
 ];
-const SETTINGS = { id: "settings", label: "Réglages", C: Reglages };
+const EXTRA = {
+  settings: { id: "settings", label: "Réglages", C: Reglages },
+  memo: { id: "memo", label: "Mémo HACCP", C: Memo },
+};
 
 export default function App() {
   return (
@@ -36,7 +42,7 @@ function Shell() {
   useEffect(() => onCloudStatus(setCloud), []);
   const tabRef = useRef(tab);
   tabRef.current = tab;
-  const current = tab === "settings" ? SETTINGS : TABS.find((t) => t.id === tab);
+  const current = EXTRA[tab] || TABS.find((t) => t.id === tab);
 
   useEffect(() => {
     window.scrollTo(0, 0);
@@ -66,7 +72,7 @@ function Shell() {
   return (
     <div className="app">
       <header className="topbar">
-        {tab === "settings" ? (
+        {EXTRA[tab] ? (
           <button className="icon-btn light" onClick={() => setTab("home")} aria-label="Retour">
             <ArrowLeft size={22} />
           </button>
@@ -74,7 +80,7 @@ function Shell() {
           <span className="brand-dot" />
         )}
         <div className="topbar-title">
-          <span>{current.id === "home" ? data.settings.shopName || "O'Délices" : current.label}</span>
+          <span>{current.id === "home" ? data.settings.shopName || "O'Délices" : current.title || current.label}</span>
           <small>HACCP</small>
         </div>
         {cloud && (

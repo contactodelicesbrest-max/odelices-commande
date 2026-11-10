@@ -82,12 +82,15 @@ Une deuxième appli, séparée de la prise de commande, pour l'hygiène en cuisi
 
 | Onglet | Ce qu'on y fait |
 |---|---|
-| **Accueil** | Ce qu'il reste à faire aujourd'hui + les non-conformités (températures hors limites, DLC dépassées, huile à changer, stock bas). |
-| **Températures** | Relevé matin/soir de tous les frigos et congélateurs en une fois. Si une température est hors limites, l'appli **oblige** à noter une action corrective. Historique et mini-graphique par appareil. |
-| **Traçabilité** | « Produit sorti / ouvert » : **photo de l'étiquette**, n° de lot, fournisseur, DLC, date d'ouverture → l'appli calcule la date limite après ouverture (J+1, J+3…) et prévient la veille. Peut déduire automatiquement la quantité du stock. |
-| **Huile** | Pour chaque friteuse : contrôles (% de composés polaires, température, aspect) et changements d'huile. Alerte au-delà de 25 % ou après X jours sans changement. |
-| **Stock** | Produits, quantités, seuil mini, emplacement, DLC. Boutons +/− rapides, livraisons, pertes, inventaire, historique des mouvements, **liste de courses** à partager (WhatsApp, SMS, mail). |
-| **Réglages ⚙️** | Ajouter / renommer les frigos, congélateurs et friteuses (avec leurs seuils), initiales, **rapports PDF** pour le contrôle sanitaire (températures, traçabilité avec photos, huile, stock) et **sauvegarde / restauration**. |
+| **Accueil** | Ce qu'il reste à faire aujourd'hui + les non-conformités (températures, recontrôles, refroidissements en cours, livraisons refusées, DLC dépassées, huile interdite, nettoyage, stock bas). |
+| **Températures** | Relevé matin/soir de tous les équipements, avec les seuils réglementaires par type (viande hachée +2 °C, préparations +3 °C, frais +4 °C, surgelés -18 °C, maintien chaud +63 °C). Hors limites : action corrective obligatoire puis **recontrôle dans l'heure**. Contrôles de **cuisson à cœur, refroidissement rapide (63→10 °C en < 2 h), remise en température (+63 °C en < 1 h) et maintien au chaud**. |
+| **Traçabilité** | Produit ouvert, **préparation maison** ou **décongélation** : photo de l'étiquette, lot, fournisseur, DLC/DDM. Durée de conservation calculée (J+3 par défaut), jamais au-delà de la DLC d'origine. **DLC dépassée = produit bloqué / enregistré comme jeté.** |
+| **Huile** | Contrôles (% composés polaires, température, aspect), filtrage et changements. 20-25 % = dégradée ; **25 % ou plus = huile interdite** (décret 2008-184) ; alerte au-dessus de **175 °C** (acrylamide). |
+| **Nettoyage** | Plan de nettoyage et de désinfection (quoi, quand, avec quel produit) avec un bouton « Fait » et l'historique. Liste de départ modifiable. |
+| **Stock** | **Contrôle à réception des livraisons** (T° des produits, emballages, étiquettes, DLC, photo du bon de livraison, acceptation/refus) qui alimente le stock. Quantités, seuils, PEPS, retrait des produits périmés, liste de courses. |
+| **Réglages ⚙️** | Équipements et friteuses, **rapports PDF** (températures, cuisson/refroidissement, traçabilité avec photos, huile, réceptions, nettoyage, stock), sauvegarde. **Mémo HACCP** : résumé des règles appliquées et leurs sources. |
+
+> Les seuils et durées appliqués viennent de l'arrêté du 21 décembre 2009, du décret 2008-184 (huiles), du règlement UE 2017/2158 (acrylamide) et du Guide de bonnes pratiques d'hygiène de la restauration. C'est une aide : ton Plan de Maîtrise Sanitaire et les textes officiels font foi.
 
 Les données sont enregistrées **sur le téléphone** (fonctionne sans internet) **et sauvegardées automatiquement dans le cloud** (la même base Firebase que l'appli de commande, dossier `haccp_v1`), photos comprises. Chaque modification part quelques secondes après ; sans réseau, l'envoi se fait dès que la connexion revient. L'icône ☁️ en haut de l'écran montre l'état (vert = sauvegardé, rouge = problème).
 

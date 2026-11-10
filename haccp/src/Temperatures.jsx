@@ -2,21 +2,22 @@ import { useMemo, useState } from "react";
 import { Thermometer, Plus, AlertTriangle, CheckCircle2, Trash2 } from "lucide-react";
 import { useData } from "./store.jsx";
 import { Sheet, Field, TempInput, Badge, Empty, Chips } from "./ui.jsx";
-import { EQUIP_TYPES } from "./db.js";
+import { EQUIP_TYPES, correctiveActions, tempStatus } from "./db.js";
+import Process from "./Process.jsx";
 import { dayKey, todayKey, fmtTime, fmtDayLong, fmtDateTime, momentOfDay, parseNum, fmtNum } from "./utils.js";
 
-export const ACTIONS = [
-  "Porte mal fermée — refermée",
-  "Dégivrage en cours",
-  "Réglage du thermostat",
-  "Produits transférés dans un autre équipement",
-  "Produits jetés",
-  "Technicien appelé",
-  "Nouveau contrôle prévu",
-];
-
 export const isFreezer = (eq) => eq?.type === "congel";
-export const inRange = (v, eq) => v >= eq.min && v <= eq.max;
+export const statusOf = (t) => t.status || (t.ok ? "ok" : "ko");
+
+// Équipements dont le dernier relevé est non conforme : un recontrôle est attendu.
+export function pendingRechecks(equipments, temps) {
+  const out = [];
+  for (const eq of equipments) {
+    const last = temps.filter((t) => t.equipmentId === eq.id).sort((a, b) => b.at.localeCompare(a.at))[0];
+    if (last && statusOf(last) !== "ok") out.push({ eq, last, late: Date.now() - new Date(last.at) > 3600000 });
+  }
+  return out;
+}
 
 export default function Temperatures({ intent }) {
   const { data, remove } = useData();
@@ -55,6 +56,11 @@ export default function Temperatures({ intent }) {
         </button>
       </div>
 
+      {pendingRechecks(equipments, temps).map(({ eq, last, late }) => (
+        <div key={eq.id} className={"alert " + (late ? "ko" : "warn")}>
+          ⟳ Recontrôler <strong>{eq.name}</strong> ({fmtNum(last.value)} °C à {fmtTime(last.at)}){late ? " — en retard" : " dans l'heure"}
+        </div>
+      ))}
       {!equipments.length && <Empty icon={Thermometer}>Ajoute tes frigos et congélateurs dans Réglages ⚙️.</Empty>}
 
       <div className="grid-cards">
@@ -72,7 +78,7 @@ export default function Temperatures({ intent }) {
                   </div>
                 </div>
                 {last ? (
-                  <div className={"eq-temp " + (last.ok ? "ok" : "ko")}>{fmtNum(last.value)}°</div>
+                  <div className={"eq-temp " + statusOf(last)}>{fmtNum(last.value)}°</div>
                 ) : (
                   <div className="eq-temp none">—</div>
                 )}
@@ -81,19 +87,23 @@ export default function Temperatures({ intent }) {
                 {["Matin", "Soir"].map((m) => {
                   const r = todayList.find((t) => t.moment === m);
                   return (
-                    <Badge key={m} tone={r ? (r.ok ? "ok" : "ko") : "neutral"}>
+                    <Badge key={m} tone={r ? statusOf(r) : "neutral"}>
                       {m} {r ? `${fmtNum(r.value)}°` : "—"}
                     </Badge>
                   );
                 })}
               </div>
+              {last && statusOf(last) !== "ok" && <Badge tone="ko">⟳ Recontrôle à faire</Badge>}
               <Spark list={list.slice(0, 20).reverse()} eq={eq} />
+              <div className="muted small rule">ℹ️ {EQUIP_TYPES[eq.type]?.rule}</div>
             </div>
           );
         })}
       </div>
 
-      <h3 className="section-title">Historique</h3>
+      <Process />
+
+      <h3 className="section-title">Historique des relevés</h3>
       <Chips
         options={equipments.map((e) => ({ value: e.id, label: e.name }))}
         value={filter}
@@ -111,9 +121,9 @@ export default function Temperatures({ intent }) {
                   <span className="muted small">
                     {t.moment} · {fmtTime(t.at)} {t.by && `· ${t.by}`}
                   </span>
-                  {!t.ok && t.action && <span className="small ko-text">↳ {t.action}</span>}
+                  {statusOf(t) !== "ok" && t.action && <span className="small ko-text">↳ {t.action}</span>}
                 </span>
-                <span className={"temp-val " + (t.ok ? "ok" : "ko")}>{fmtNum(t.value)} °C</span>
+                <span className={"temp-val " + statusOf(t)}>{fmtNum(t.value)} °C</span>
               </button>
             ))}
           </div>
@@ -141,7 +151,9 @@ export default function Temperatures({ intent }) {
         >
           <dl className="dl">
             <dt>Température</dt>
-            <dd className={detail.ok ? "ok-text" : "ko-text"}>{fmtNum(detail.value)} °C {detail.ok ? "(conforme)" : "(NON conforme)"}</dd>
+            <dd className={statusOf(detail) + "-text"}>
+              {fmtNum(detail.value)} °C {{ ok: "(conforme)", warn: "(écart toléré)", ko: "(NON conforme)" }[statusOf(detail)]}
+            </dd>
             <dt>Seuils</dt>
             <dd>{fmtNum(detail.min)} à {fmtNum(detail.max)} °C</dd>
             <dt>Date</dt>
@@ -171,7 +183,7 @@ function Spark({ list, eq }) {
       <rect x="0" y={y(eq.max)} width={W} height={Math.max(0, y(eq.min) - y(eq.max))} className="spark-band" />
       <polyline points={pts} className="spark-line" />
       {list.map((t, i) => (
-        <circle key={t.id} cx={x(i)} cy={y(t.value)} r="2.6" className={t.ok ? "spark-ok" : "spark-ko"} />
+        <circle key={t.id} cx={x(i)} cy={y(t.value)} r="2.6" className={"spark-" + statusOf(t)} />
       ))}
     </svg>
   );
@@ -179,7 +191,8 @@ function Spark({ list, eq }) {
 
 function TempEntry({ onClose, equipments }) {
   const { data, saveMany } = useData();
-  const [moment, setMoment] = useState(momentOfDay());
+  const rechecks = pendingRechecks(equipments, data.temps);
+  const [moment, setMoment] = useState(rechecks.length ? "Recontrôle" : momentOfDay());
   const [values, setValues] = useState({});
   const [actions, setActions] = useState({});
   const [comments, setComments] = useState({});
@@ -189,7 +202,8 @@ function TempEntry({ onClose, equipments }) {
   const rows = equipments.map((eq) => {
     const v = parseNum(values[eq.id]);
     const filled = Number.isFinite(v);
-    return { eq, v, filled, ok: filled && inRange(v, eq) };
+    const status = filled ? tempStatus(eq, v) : null;
+    return { eq, v, filled, status, ok: status === "ok" };
   });
   const filled = rows.filter((r) => r.filled);
   const missingAction = filled.some((r) => !r.ok && !actions[r.eq.id]);
@@ -208,6 +222,7 @@ function TempEntry({ onClose, equipments }) {
         min: r.eq.min,
         max: r.eq.max,
         ok: r.ok,
+        status: r.status,
         moment,
         at,
         by: by.trim(),
@@ -229,11 +244,11 @@ function TempEntry({ onClose, equipments }) {
       }
     >
       <div className="row gap">
-        <Chips options={["Matin", "Soir"]} value={moment} onChange={(v) => v && setMoment(v)} />
+        <Chips options={["Matin", "Soir", "Recontrôle"]} value={moment} onChange={(v) => v && setMoment(v)} />
         <input className="input initials" placeholder="Initiales" value={by} onChange={(e) => setBy(e.target.value)} maxLength={12} />
       </div>
-      {rows.map(({ eq, filled, ok }) => (
-        <div key={eq.id} className={"temp-row" + (filled ? (ok ? " is-ok" : " is-ko") : "")}>
+      {rows.map(({ eq, filled, ok, status, v }) => (
+        <div key={eq.id} className={"temp-row" + (filled ? " is-" + status : "")}>
           <div className="temp-row-head">
             <div>
               <strong>{eq.name}</strong>
@@ -244,13 +259,15 @@ function TempEntry({ onClose, equipments }) {
             <TempInput
               value={values[eq.id]}
               negativeDefault={isFreezer(eq)}
+              autoFocus={false}
               onChange={(v) => setValues((s) => ({ ...s, [eq.id]: v }))}
             />
           </div>
           {filled && !ok && (
             <div className="corrective">
-              <div className="ko-text small row gap-s">
-                <AlertTriangle size={16} /> Hors limites — action corrective obligatoire
+              <div className={(status === "warn" ? "warn-text" : "ko-text") + " small row gap-s"}>
+                <AlertTriangle size={16} />
+                {status === "warn" ? "Écart toléré (dégivrage/chargement) — à recontrôler" : "Hors limites — action corrective obligatoire"}
               </div>
               <select
                 className="input"
@@ -258,7 +275,7 @@ function TempEntry({ onClose, equipments }) {
                 onChange={(e) => setActions((s) => ({ ...s, [eq.id]: e.target.value }))}
               >
                 <option value="">Choisir une action…</option>
-                {ACTIONS.map((a) => (
+                {correctiveActions(eq, v).map((a) => (
                   <option key={a}>{a}</option>
                 ))}
                 <option>Autre (voir commentaire)</option>
@@ -269,6 +286,7 @@ function TempEntry({ onClose, equipments }) {
                 value={comments[eq.id] || ""}
                 onChange={(e) => setComments((s) => ({ ...s, [eq.id]: e.target.value }))}
               />
+              <div className="muted small">ℹ️ {EQUIP_TYPES[eq.type]?.rule} Refais un relevé (« Recontrôle ») dans l'heure.</div>
             </div>
           )}
         </div>
