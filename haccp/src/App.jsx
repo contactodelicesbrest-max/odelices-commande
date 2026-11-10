@@ -1,7 +1,8 @@
 import { useEffect, useRef, useState } from "react";
 import { Capacitor } from "@capacitor/core";
 import { App as CapApp } from "@capacitor/app";
-import { Home, Thermometer, ClipboardCheck, Droplets, Package, Settings, ArrowLeft } from "lucide-react";
+import { Home, Thermometer, ClipboardCheck, Droplets, Package, Settings, ArrowLeft, Cloud, CloudOff } from "lucide-react";
+import { onCloudStatus } from "./cloud.js";
 import { DataProvider, useData } from "./store.jsx";
 import Accueil from "./Accueil.jsx";
 import Temperatures from "./Temperatures.jsx";
@@ -31,6 +32,8 @@ function Shell() {
   const { data } = useData();
   const [tab, setTab] = useState("home");
   const [intent, setIntent] = useState(null);
+  const [cloud, setCloud] = useState(null);
+  useEffect(() => onCloudStatus(setCloud), []);
   const tabRef = useRef(tab);
   tabRef.current = tab;
   const current = tab === "settings" ? SETTINGS : TABS.find((t) => t.id === tab);
@@ -74,6 +77,11 @@ function Shell() {
           <span>{current.id === "home" ? data.settings.shopName || "O'Délices" : current.label}</span>
           <small>HACCP</small>
         </div>
+        {cloud && (
+          <button className={"icon-btn cloud-" + cloud.state} onClick={() => setTab("settings")} aria-label="Sauvegarde">
+            {cloud.state === "error" || cloud.state === "offline" ? <CloudOff size={20} /> : <Cloud size={20} />}
+          </button>
+        )}
         <button className="icon-btn light" onClick={() => setTab("settings")} aria-label="Réglages">
           <Settings size={22} />
         </button>

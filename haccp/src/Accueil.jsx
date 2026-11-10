@@ -1,3 +1,5 @@
+import { useEffect, useState } from "react";
+import { onCloudStatus } from "./cloud.js";
 import { Thermometer, ClipboardCheck, Droplets, Package, AlertTriangle, CheckCircle2, Camera } from "lucide-react";
 import { useData } from "./store.jsx";
 import { dayKey, todayKey, momentOfDay, fmtNum, daysSince, fmtDate } from "./utils.js";
@@ -8,6 +10,8 @@ import { daysUntil } from "./utils.js";
 
 export default function Accueil({ go }) {
   const { data } = useData();
+  const [cloud, setCloud] = useState(null);
+  useEffect(() => onCloudStatus(setCloud), []);
   const today = todayKey();
   const moment = momentOfDay();
   const tempsToday = data.temps.filter((t) => dayKey(t.at) === today);
@@ -38,8 +42,12 @@ export default function Accueil({ go }) {
   if (low.length) tasks.push({ tab: "stock", icon: Package, text: `${low.length} produit(s) en stock bas : ${low.map((s) => s.name).slice(0, 5).join(", ")}${low.length > 5 ? "…" : ""}` });
   for (const s of data.stock) if (s.dlc && (s.qty || 0) > 0 && daysUntil(s.dlc) < 0) alerts.push({ tab: "stock", icon: Package, text: `Stock : ${s.name} — DLC dépassée (${fmtDate(s.dlc)})` });
 
-  if (!data.settings.lastBackup ? data.temps.length + data.trace.length > 20 : daysSince(data.settings.lastBackup) >= 7)
-    tasks.push({ tab: "settings", icon: AlertTriangle, text: "Pense à faire une sauvegarde des données (Réglages)" });
+  if (cloud && (cloud.state === "error" || (cloud.lastOk ? daysSince(cloud.lastOk) >= 2 : data.temps.length + data.trace.length > 10)))
+    (cloud.state === "error" ? alerts : tasks).push({
+      tab: "settings",
+      icon: AlertTriangle,
+      text: cloud.state === "error" ? "La sauvegarde automatique ne fonctionne pas (voir Réglages)" : "Sauvegarde cloud en attente : connecte le téléphone à internet",
+    });
 
   const traceToday = data.trace.filter((t) => dayKey(t.at) === today).length;
 

@@ -1,5 +1,6 @@
-import { useRef, useState } from "react";
-import { Plus, Trash2, FileDown, Upload, Download, Thermometer, Droplets, Pencil, ArrowUp, ArrowDown } from "lucide-react";
+import { useEffect, useRef, useState } from "react";
+import { onCloudStatus, restoreFromCloud, syncNow } from "./cloud.js";
+import { Plus, Trash2, FileDown, Upload, Download, Thermometer, Droplets, Pencil, ArrowUp, ArrowDown, Cloud, CloudDownload, RefreshCw } from "lucide-react";
 import { useData } from "./store.jsx";
 import { Sheet, Field, Chips } from "./ui.jsx";
 import { EQUIP_TYPES, exportAll, importAll } from "./db.js";
@@ -165,11 +166,14 @@ export default function Reglages() {
         </div>
       </div>
 
-      <h3 className="section-title">Sauvegarde</h3>
+      <h3 className="section-title">Sauvegarde automatique (cloud)</h3>
+      <CloudCard onRestored={reload} />
+
+      <h3 className="section-title">Sauvegarde manuelle (fichier)</h3>
       <div className="card pad">
         <p className="muted small">
-          Les données sont enregistrées sur cet appareil uniquement. Fais une sauvegarde régulièrement (envoie-la sur ton Drive ou par mail) pour ne rien perdre en cas de casse ou de changement de téléphone.
-          {s.lastBackup && <><br />Dernière sauvegarde : {new Date(s.lastBackup).toLocaleString("fr-FR")}</>}
+          En plus de la sauvegarde automatique, tu peux exporter un fichier de sauvegarde (à garder sur ton Drive ou par mail).
+          {s.lastBackup && <><br />Dernier fichier : {new Date(s.lastBackup).toLocaleString("fr-FR")}</>}
         </p>
         <div className="grid2">
           <button className="btn btn-primary" disabled={!!busy} onClick={backup}>
@@ -267,5 +271,57 @@ function FryerForm({ initial, onClose, onSave, onRemove }) {
         <Field label="Changement max (jours)" hint="Vide = réglage général"><input className="input" inputMode="numeric" value={f.maxDays} onChange={set("maxDays")} /></Field>
       </div>
     </Sheet>
+  );
+}
+
+function CloudCard({ onRestored }) {
+  const [st, setSt] = useState(null);
+  const [busy, setBusy] = useState(false);
+  useEffect(() => onCloudStatus(setSt), []);
+  if (!st) return null;
+  const label = {
+    ok: "✅ Données sauvegardées",
+    syncing: "⏳ Envoi en cours…",
+    offline: "📴 Hors connexion",
+    error: "⚠️ Erreur de sauvegarde",
+    idle: "…",
+  }[st.state];
+  const restore = async () => {
+    if (!confirm("Récupérer les données sauvegardées dans le cloud sur ce téléphone ? (les données déjà présentes sont conservées)")) return;
+    setBusy(true);
+    try {
+      const n = await restoreFromCloud();
+      await onRestored();
+      alert(`${n} élément(s) récupéré(s) ✓`);
+    } catch (e) {
+      alert("Récupération impossible : " + (e.message === "timeout" ? "pas de connexion" : e.message));
+    } finally {
+      setBusy(false);
+    }
+  };
+  return (
+    <div className="card pad">
+      <div className="row gap">
+        <Cloud size={22} className={st.state === "error" ? "ko-text" : st.state === "ok" ? "ok-text" : "muted"} />
+        <div className="col">
+          <strong>{label}</strong>
+          <span className="muted small">
+            {st.lastOk ? `Dernière sauvegarde : ${new Date(st.lastOk).toLocaleString("fr-FR")}` : "Jamais sauvegardé pour l'instant"}
+          </span>
+        </div>
+      </div>
+      {st.error && <div className="alert ko">{st.error}</div>}
+      <p className="muted small">
+        Chaque relevé, photo, contrôle ou mouvement de stock est envoyé automatiquement quelques secondes après (photos comprises). Sans réseau, l'envoi se fait dès que la connexion revient. Sur un nouveau téléphone, installe l'appli puis appuie sur « Récupérer ».
+      </p>
+      <div className="grid2">
+        <button className="btn btn-ghost" disabled={busy || st.state === "syncing"} onClick={() => syncNow()}>
+          <RefreshCw size={18} /> Envoyer maintenant
+        </button>
+        <button className="btn btn-ghost" disabled={busy} onClick={restore}>
+          <CloudDownload size={18} /> {busy ? "Récupération…" : "Récupérer"}
+        </button>
+      </div>
+    </div>
   );
 }

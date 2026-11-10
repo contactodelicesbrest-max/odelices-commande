@@ -214,3 +214,10 @@ input, select { font: inherit; }
   .grid2 { grid-template-columns: 1fr; }
   .tab span { font-size: 10px; }
 }
+
+.cloud-ok { color: #4ade80; }
+.cloud-syncing, .cloud-idle { color: #fdba74; }
+.cloud-offline { color: #a8a29e; }
+.cloud-error { color: #f87171; }
+
+.grid2 > .btn { min-width: 0; padding: 0 10px; }

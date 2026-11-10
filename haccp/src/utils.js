@@ -39,7 +39,7 @@ export const fmtNum = (n, digits = 1) =>
   Number.isFinite(n) ? n.toLocaleString("fr-FR", { maximumFractionDigits: digits }) : "—";
 
 // ---------- Photos : redimensionnement + compression JPEG ----------
-export function compressImage(file, maxSize = 1280, quality = 0.72) {
+export function compressImage(file, maxSize = 1024, quality = 0.66) {
   return new Promise((resolve, reject) => {
     const url = URL.createObjectURL(file);
     const img = new Image();

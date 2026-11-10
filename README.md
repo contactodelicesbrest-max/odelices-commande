@@ -89,7 +89,23 @@ Une deuxième appli, séparée de la prise de commande, pour l'hygiène en cuisi
 | **Stock** | Produits, quantités, seuil mini, emplacement, DLC. Boutons +/− rapides, livraisons, pertes, inventaire, historique des mouvements, **liste de courses** à partager (WhatsApp, SMS, mail). |
 | **Réglages ⚙️** | Ajouter / renommer les frigos, congélateurs et friteuses (avec leurs seuils), initiales, **rapports PDF** pour le contrôle sanitaire (températures, traçabilité avec photos, huile, stock) et **sauvegarde / restauration**. |
 
-Les données sont enregistrées **sur le téléphone** (fonctionne sans internet). ⚠️ Pense à faire **Réglages → Sauvegarder** régulièrement (et à envoyer le fichier sur ton Drive/mail) : si le téléphone est perdu, les données le sont aussi.
+Les données sont enregistrées **sur le téléphone** (fonctionne sans internet) **et sauvegardées automatiquement dans le cloud** (la même base Firebase que l'appli de commande, dossier `haccp_v1`), photos comprises. Chaque modification part quelques secondes après ; sans réseau, l'envoi se fait dès que la connexion revient. L'icône ☁️ en haut de l'écran montre l'état (vert = sauvegardé, rouge = problème).
+
+Nouveau téléphone / réinstallation : installer l'appli → **Réglages → Récupérer**.
+
+### Si la sauvegarde affiche « Accès refusé »
+Dans **console.firebase.google.com** → projet `odelices-brest` → **Realtime Database → Règles**, vérifie que les règles autorisent la lecture/écriture (le mode test expire au bout de 30 jours), par exemple :
+
+```json
+{
+  "rules": {
+    "orders_v2": { ".read": true, ".write": true },
+    "haccp_v1": { ".read": true, ".write": true }
+  }
+}
+```
+
+Puis **Publier**. (Ces règles sont ouvertes : n'importe qui ayant l'adresse de la base pourrait lire les données. On pourra ajouter une connexion par mot de passe plus tard si besoin.)
 
 ## Récupérer l'APK
 

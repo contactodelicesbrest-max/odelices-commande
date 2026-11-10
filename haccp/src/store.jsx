@@ -1,5 +1,6 @@
 import { createContext, useCallback, useContext, useEffect, useState } from "react";
 import * as db from "./db.js";
+import { initCloud, markDeleted, scheduleSync } from "./cloud.js";
 
 const DATA_STORES = db.STORES.filter((s) => s !== "photos" && s !== "settings");
 const Ctx = createContext(null);
@@ -16,7 +17,9 @@ export function DataProvider({ children }) {
   }, []);
 
   useEffect(() => {
-    reload().catch((e) => {
+    reload()
+      .then(() => initCloud())
+      .catch((e) => {
       console.error(e);
       alert("Erreur d'ouverture de la base de données : " + e.message);
     });
@@ -31,6 +34,7 @@ export function DataProvider({ children }) {
       const list = d[store].filter((x) => x.id !== o.id);
       return { ...d, [store]: [...list, o] };
     });
+    scheduleSync();
     return o;
   }, []);
 
@@ -40,17 +44,20 @@ export function DataProvider({ children }) {
     await db.putMany(store, list);
     const ids = new Set(list.map((o) => o.id));
     setData((d) => ({ ...d, [store]: [...d[store].filter((x) => !ids.has(x.id)), ...list] }));
+    scheduleSync();
     return list;
   }, []);
 
   const remove = useCallback(async (store, id) => {
     await db.del(store, id);
+    markDeleted(store, id);
     setData((d) => ({ ...d, [store]: d[store].filter((x) => x.id !== id) }));
   }, []);
 
   const savePhoto = useCallback(async (dataUrl) => {
     const p = { id: db.uid(), dataUrl, createdAt: new Date().toISOString() };
     await db.put("photos", p);
+    scheduleSync();
     return p.id;
   }, []);
 
