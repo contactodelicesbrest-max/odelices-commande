@@ -94,6 +94,11 @@ export default function Reglages({ go }) {
         </Field>
       </div>
 
+      <label className="check">
+        <input type="checkbox" checked={s.autoReplaceLots !== false} onChange={(e) => updateSettings({ autoReplaceLots: e.target.checked })} />
+        Nouvelle cuisson / nouvelle sauce : clôturer automatiquement l'ancien lot du même produit
+      </label>
+
       <h3 className="section-title">Recettes maison (sauces…)</h3>
       <RecipesCard settings={s} updateSettings={updateSettings} />
 

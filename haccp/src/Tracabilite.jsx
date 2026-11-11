@@ -13,6 +13,7 @@ export const TRACE_STATUS = {
   open: { label: "En cours", tone: "info" },
   used: { label: "Consommé", tone: "ok" },
   thrown: { label: "Jeté", tone: "ko" },
+  replaced: { label: "Remplacé (nouveau lot)", tone: "neutral" },
 };
 
 // Durées de conservation par défaut (GBPH restauration / arrêté du 21/12/2009) — modifiables.
@@ -57,7 +58,7 @@ export function dlcLabel(d) {
   return `Jusqu'au ${fmtDate(d)}`;
 }
 export { frozenInTime, effectiveDlc } from "./traceRules.js";
-import { frozenInTime, effectiveDlc } from "./traceRules.js";
+import { frozenInTime, effectiveDlc, autoReplaceOn, olderLots, replaceOlderLots } from "./traceRules.js";
 
 export default function Tracabilite({ intent }) {
   const { data, save } = useData();
@@ -292,6 +293,8 @@ function TraceForm({ initial, onClose }) {
       if (fl && f.thawAll !== false) await save("trace", { ...fl, status: "used", closedAt: rec.at, comment: [fl.comment, "Décongelé"].filter(Boolean).join(" — ") });
     }
     const saved = await save("trace", rec);
+    // Nouvelle préparation maison : l'ancien lot du même produit est remplacé
+    if (isNew && f.kind === "homemade" && autoReplaceOn(data.settings)) await replaceOlderLots(save, data.trace, saved);
     onClose();
     if (doPrint && saved.status !== "thrown") printLabelsSafe([saved], data.settings);
   };
@@ -471,6 +474,11 @@ function TraceForm({ initial, onClose }) {
           <input type="checkbox" checked={doPrint} onChange={(e) => setDoPrint(e.target.checked)} />
           <Printer size={18} /> Imprimer l'étiquette DLC
         </label>
+      )}
+      {isNew && f.kind === "homemade" && autoReplaceOn(data.settings) && olderLots(data.trace, f.product).length > 0 && (
+        <div className="alert info">
+          ♻️ L'ancien lot de « {f.product} » (du {olderLots(data.trace, f.product).map((t) => fmtDate(t.at)).join(", ")}) sera clôturé automatiquement et remplacé par celui-ci.
+        </div>
       )}
       {initial.ingredients?.length > 0 && (
         <div className="card pad">

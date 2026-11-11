@@ -4,7 +4,7 @@ import { useData } from "./store.jsx";
 import { Sheet, Field, Chips, PhotoInput } from "./ui.jsx";
 import { addDays, dayKey, daysUntil, fmtDate, toLocalInput } from "./utils.js";
 import { isPrintAvailable, printLabelsSafe } from "./printer.js";
-import { effectiveDlc } from "./traceRules.js";
+import { effectiveDlc, autoReplaceOn, olderLots, replaceOlderLots } from "./traceRules.js";
 
 // Recettes maison par défaut (modifiables dans Réglages → Recettes maison).
 // Sans étude de durée de vie : 3 jours maximum après la fabrication, à +3 °C.
@@ -95,6 +95,7 @@ export default function SauceForm({ onClose }) {
       lot: `F${atLocal.slice(2, 10).replace(/-/g, "")}${atLocal.slice(11, 16).replace(":", "")}`,
       comment: "",
     });
+    if (autoReplaceOn(data.settings)) await replaceOlderLots(save, data.trace, rec);
     onClose();
     if (doPrint) printLabelsSafe([rec], data.settings);
   };
@@ -111,6 +112,9 @@ export default function SauceForm({ onClose }) {
     >
       <Chips options={recipes.map((r) => ({ value: r.id, label: r.name }))} value={recipeId} onChange={(v) => v && pickRecipe(v)} />
       {recipe?.note && <div className="alert info">ℹ️ {recipe.note}</div>}
+      {recipe && autoReplaceOn(data.settings) && olderLots(data.trace, recipe.name).length > 0 && (
+        <div className="alert info">♻️ L'ancien bac de « {recipe.name} » (du {olderLots(data.trace, recipe.name).map((t) => fmtDate(t.at)).join(", ")}) sera clôturé automatiquement.</div>
+      )}
 
       <div className="grid2">
         <Field label="Fabriquée le">

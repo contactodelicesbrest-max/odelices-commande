@@ -2,6 +2,7 @@ import { useEffect, useMemo, useState } from "react";
 import { Flame, Snowflake, RotateCcw, ThermometerSun, CheckCircle2, Trash2, Timer } from "lucide-react";
 import { useData } from "./store.jsx";
 import { isPrintAvailable, printLabelsSafe } from "./printer.js";
+import { autoReplaceOn, olderLots, replaceOlderLots } from "./traceRules.js";
 import { Sheet, Field, Chips, Badge, Empty, TempInput } from "./ui.jsx";
 import { addDays, dayKey, daysUntil, fmtDate, fmtDateTime, fmtNum, fmtTime, parseNum, toLocalInput } from "./utils.js";
 
@@ -251,6 +252,7 @@ function ProcessForm({ kind, initial, onClose }) {
         comment: `Cuit puis refroidi (${fmtNum(rec.startTemp)} → ${fmtNum(endTemp)} °C en ${minutes} min)`,
       });
       rec.traceId = t.id;
+      if (autoReplaceOn(data.settings)) await replaceOlderLots(save, data.trace, t);
       if (isPrintAvailable() && data.settings.printerAddress && data.settings.printerAuto) printLabelsSafe([t], data.settings);
     }
     const saved = await save("process", rec);
@@ -346,6 +348,9 @@ function ProcessForm({ kind, initial, onClose }) {
           <input type="checkbox" checked={thenCool} onChange={(e) => setThenCool(e.target.checked)} />
           Mettre au froid ensuite : démarrer le refroidissement rapide (+10 °C en moins de 2 h)
         </label>
+      )}
+      {kind === "cooling" && !initial?.traceId && makeLabel && autoReplaceOn(data.settings) && olderLots(data.trace, f.product).length > 0 && (
+        <div className="alert info">♻️ L'ancien lot de « {f.product} » (du {olderLots(data.trace, f.product).map((t) => fmtDate(t.at)).join(", ")}) sera clôturé automatiquement.</div>
       )}
       {kind === "cooling" && !initial?.traceId && (
         <label className="check">
