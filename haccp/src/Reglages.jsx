@@ -2,6 +2,7 @@ import { useEffect, useRef, useState } from "react";
 import { onCloudStatus, restoreFromCloud, syncNow } from "./cloud.js";
 import { coldMeats } from "./Process.jsx";
 import { RecipesCard } from "./Sauce.jsx";
+import { reminderSettings, testReminder, askPermission } from "./reminders.js";
 import { CHARSETS, charsetOf, isPrintAvailable, listPrinters, printCharsetTest, printTest } from "./printer.js";
 import { Plus, Trash2, FileDown, Upload, Download, Thermometer, Droplets, Pencil, ArrowUp, ArrowDown, Cloud, CloudDownload, RefreshCw } from "lucide-react";
 import { useData } from "./store.jsx";
@@ -155,6 +156,10 @@ export default function Reglages({ go }) {
         </Field>
       </div>
 
+      <h3 className="section-title">🔔 Rappels sur le téléphone</h3>
+      <RemindersCard settings={s} updateSettings={updateSettings} />
+
+      <button className="btn btn-ghost" onClick={() => go("registers")}>📁 Dossier complet pour un contrôle sanitaire (un seul PDF)</button>
       <h3 className="section-title">Rapports PDF (contrôle sanitaire)</h3>
       <div className="card pad">
         <div className="grid2">
@@ -431,6 +436,63 @@ function PrinterCard({ settings, updateSettings }) {
       <button className="btn btn-primary" disabled={busy || !native || !settings.printerAddress} onClick={() => test()}>
         {busy ? "…" : "Imprimer une étiquette test"}
       </button>
+    </div>
+  );
+}
+
+function RemindersCard({ settings, updateSettings }) {
+  const r = reminderSettings(settings);
+  const set = (patch) => updateSettings({ reminders: { ...r, ...patch } });
+  const on = !settings.remindersOff;
+  return (
+    <div className="card pad">
+      <label className="check">
+        <input
+          type="checkbox"
+          checked={on}
+          onChange={async (e) => {
+            if (e.target.checked) await askPermission().catch(() => {});
+            updateSettings({ remindersOff: !e.target.checked });
+          }}
+        />
+        Activer les rappels (même appli fermée)
+      </label>
+      {on && (
+        <>
+          <div className="grid2">
+            <Field label="Relevé du matin">
+              <input className="input" type="time" value={r.tempTimes[0] || ""} onChange={(e) => set({ tempTimes: [e.target.value, r.tempTimes[1] || ""] })} />
+            </Field>
+            <Field label="Relevé du soir">
+              <input className="input" type="time" value={r.tempTimes[1] || ""} onChange={(e) => set({ tempTimes: [r.tempTimes[0] || "", e.target.value] })} />
+            </Field>
+          </div>
+          {[
+            ["cooling", "Refroidissement / remise en température à terminer (15 min avant la limite)"],
+            ["dlc", "Dates limites : la veille et le jour même à 9 h 30"],
+            ["cleaning", "Hotte et nettoyages mensuels / annuels à refaire"],
+            ["thermo", "Vérification mensuelle des thermomètres"],
+          ].map(([k, label]) => (
+            <label key={k} className="check">
+              <input type="checkbox" checked={!!r[k]} onChange={(e) => set({ [k]: e.target.checked })} />
+              {label}
+            </label>
+          ))}
+          <button
+            className="btn btn-ghost"
+            onClick={async () => {
+              try {
+                await testReminder();
+                alert("Une notification de test va arriver dans 5 secondes.");
+              } catch (e) {
+                alert(e.message);
+              }
+            }}
+          >
+            Tester un rappel
+          </button>
+        </>
+      )}
     </div>
   );
 }

@@ -4,6 +4,7 @@ import LabelPhoto from "./LabelPhoto.jsx";
 import InvoiceForm, { InvoiceList } from "./Invoice.jsx";
 import { PhotoThumb } from "./ui.jsx";
 import { detectType, openingAdvice } from "./products.js";
+import { allergensFromText, allergenById } from "./allergens.js";
 import { useData } from "./store.jsx";
 import { Sheet, Field, Chips, Badge, Empty } from "./ui.jsx";
 import { daysUntil, fmtDate, fmtDateTime, fmtNum, parseNum, shareText } from "./utils.js";
@@ -170,6 +171,10 @@ function StockForm({ initial, onClose, onMove }) {
       unit: isNew && r.quantity ? r.quantity.unit : isNew && r.type?.unit ? r.type.unit : s.unit,
       qty: s.qty || (r.quantity ? String(r.quantity.qty).replace(".", ",") : s.qty),
       supplier: s.supplier || (r.stamp ? r.stamp : ""),
+      ...(() => {
+        const al = allergensFromText(r.raw || "");
+        return al.contains.length || al.traces.length ? { allergens: al.contains, allergenTraces: al.traces } : {};
+      })(),
     }));
   };
 
@@ -257,6 +262,12 @@ function StockForm({ initial, onClose, onMove }) {
           onBlur={() => isNew && type && setF((s) => ({ ...s, category: s.category === "Autre" ? type.cat : s.category }))}
         />
       </Field>
+      {(f.allergens?.length > 0 || f.allergenTraces?.length > 0) && (
+        <div className="alert warn">
+          ⚠️ Allergènes repérés sur l'étiquette : {(f.allergens || []).map((a) => allergenById[a]?.label).join(", ") || "—"}
+          {f.allergenTraces?.length > 0 && ` · traces possibles : ${f.allergenTraces.map((a) => allergenById[a]?.label).join(", ")}`}. Pense à mettre à jour le tableau des allergènes.
+        </div>
+      )}
       {advice && (
         <div className="alert info">
           {type && <strong>{type.label} · </strong>}

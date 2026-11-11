@@ -4,6 +4,9 @@ import { App as CapApp } from "@capacitor/app";
 import { Home, Thermometer, ClipboardCheck, Droplets, Package, Settings, ArrowLeft, Cloud, CloudOff, Sparkles } from "lucide-react";
 import Nettoyage from "./Nettoyage.jsx";
 import Memo from "./Memo.jsx";
+import Registres from "./Registres.jsx";
+import Allergenes from "./Allergenes.jsx";
+import { askPermission, onReminderTap, scheduleRemindersSoon } from "./reminders.js";
 import { onCloudStatus } from "./cloud.js";
 import { DataProvider, useData } from "./store.jsx";
 import Accueil from "./Accueil.jsx";
@@ -24,6 +27,8 @@ const TABS = [
 const EXTRA = {
   settings: { id: "settings", label: "Réglages", C: Reglages },
   memo: { id: "memo", label: "Mémo HACCP", C: Memo },
+  registers: { id: "registers", label: "Registres & dossier contrôle", C: Registres },
+  allergens: { id: "allergens", label: "Allergènes", C: Allergenes },
 };
 
 export default function App() {
@@ -62,6 +67,17 @@ function Shell() {
       sub.then((h) => h.remove());
     };
   }, []);
+
+  // Rappels : demande d'autorisation au premier lancement, puis replanification à chaque changement
+  useEffect(() => {
+    askPermission().catch(() => {});
+    let off = () => {};
+    onReminderTap((t) => t && setTab(t)).then((f) => (off = f));
+    return () => off();
+  }, []);
+  useEffect(() => {
+    scheduleRemindersSoon(data);
+  }, [data]);
 
   const go = (t, i = null) => {
     setIntent(i);

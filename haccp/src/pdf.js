@@ -5,24 +5,36 @@ import { EQUIP_TYPES } from "./db.js";
 
 const M = 12; // marge (mm)
 
+// Dossier complet : quand « shared » est défini, chaque rapport s'ajoute au même PDF.
+let shared = null;
+
 function makeDoc(title, subtitle, shopName) {
+  if (shared) {
+    shared.doc.addPage();
+    shared.title = title;
+    shared.subtitle = subtitle;
+    shared.header();
+    shared.sections.push({ title, page: shared.doc.getNumberOfPages() });
+    return shared;
+  }
   const doc = new jsPDF({ unit: "mm", format: "a4", orientation: "landscape" });
-  const W = doc.internal.pageSize.getWidth();
-  const header = () => {
+  const ctx = { doc, W: doc.internal.pageSize.getWidth(), H: doc.internal.pageSize.getHeight(), title, subtitle, sections: [] };
+  ctx.header = () => {
     doc.setFont("helvetica", "bold");
     doc.setFontSize(14);
-    doc.text(`${shopName} - ${title}`, M, M + 2);
+    doc.text(`${shopName} - ${ctx.title}`, M, M + 2);
     doc.setFont("helvetica", "normal");
     doc.setFontSize(9);
     doc.setTextColor(90);
-    doc.text(subtitle, M, M + 7);
+    doc.text(ctx.subtitle, M, M + 7);
     doc.setTextColor(0);
   };
-  header();
-  return { doc, W, H: doc.internal.pageSize.getHeight(), header };
+  ctx.header();
+  return ctx;
 }
 
 function finish(doc, shopName) {
+  if (shared) return null;
   const n = doc.getNumberOfPages();
   for (let i = 1; i <= n; i++) {
     doc.setPage(i);
@@ -304,4 +316,210 @@ export async function pdfCleaning(data, from, to) {
     M + 18
   );
   return finish(ctx.doc, shop);
+}
+
+// ---------- Registres : thermomètres, nuisibles, formation, réclamations ----------
+const REG_INCIDENT = { client: "Réclamation client", fournisseur: "Problème fournisseur / produit", equipement: "Panne d'équipement", autre: "Autre" };
+
+export async function pdfRegisters(data, from, to) {
+  const shop = data.settings.shopName || "O'Délices";
+  const regs = data.registers || [];
+  const next = (title, sub) => {
+    if (shared) return makeDoc(title, sub, shop);
+    ctx.doc.addPage();
+    ctx.title = title;
+    ctx.subtitle = sub;
+    ctx.header();
+    return ctx;
+  };
+  const ctx = makeDoc("Vérification des thermomètres", period(from, to) + " - test mensuel dans la glace fondante (0 °C), écart toléré ±1 °C", shop);
+  await table(
+    ctx,
+    [
+      { title: "Date", w: 22, get: (r) => fmtDate(r.at) },
+      { title: "Thermomètre", w: 45, get: (r) => r.thermometer },
+      { title: "Méthode", w: 40, get: (r) => (r.method === "boil" ? "Eau bouillante (100 °C)" : "Glace fondante (0 °C)") },
+      { title: "Lu", w: 18, get: (r) => `${fmtNum(r.reading)} °C` },
+      { title: "Écart", w: 18, get: (r) => `${fmtNum(r.gap)} °C`, color: (r) => (r.ok ? null : RED) },
+      { title: "Conforme", w: 18, get: (r) => (r.ok ? "Oui" : "NON"), color: (r) => (r.ok ? null : RED) },
+      { title: "Action", w: 60, get: (r) => r.action },
+      { title: "Par", w: 15, get: (r) => r.by },
+    ],
+    regs.filter((r) => r.type === "thermo" && inPeriod(r.at, from, to)).sort(sortAt),
+    M + 12
+  );
+
+  next("Lutte contre les nuisibles", period(from, to));
+  await table(
+    ctx,
+    [
+      { title: "Rapport", w: 22, img: (r) => loadPhoto(r.photoId) },
+      { title: "Date", w: 22, get: (r) => fmtDate(r.at) },
+      { title: "Type", w: 35, get: (r) => (r.kind === "visit" ? "Passage société" : "Observation interne") },
+      { title: "Société", w: 40, get: (r) => r.company },
+      { title: "Observations", w: 75, get: (r) => r.observation },
+      { title: "Action", w: 55, get: (r) => r.action },
+      { title: "Par", w: 15, get: (r) => r.by },
+    ],
+    regs.filter((r) => r.type === "pests" && inPeriod(r.at, from, to)).sort(sortAt),
+    M + 12
+  );
+
+  next("Formation du personnel à l'hygiène", "Liste à jour (toutes dates)");
+  await table(
+    ctx,
+    [
+      { title: "Attestation", w: 22, img: (r) => loadPhoto(r.photoId) },
+      { title: "Nom", w: 45, get: (r) => r.person },
+      { title: "Poste", w: 35, get: (r) => r.role },
+      { title: "Formation", w: 60, get: (r) => r.course },
+      { title: "Organisme", w: 50, get: (r) => r.org },
+      { title: "Date", w: 25, get: (r) => fmtDate(r.at) },
+    ],
+    regs.filter((r) => r.type === "training").sort(sortAt),
+    M + 12
+  );
+
+  next("Réclamations, incidents et non-conformités", period(from, to));
+  await table(
+    ctx,
+    [
+      { title: "Photo", w: 22, img: (r) => loadPhoto(r.photoId) },
+      { title: "Date", w: 22, get: (r) => fmtDate(r.at) },
+      { title: "Type", w: 40, get: (r) => REG_INCIDENT[r.category] || r.category },
+      { title: "Description", w: 80, get: (r) => r.description },
+      { title: "Action / suite donnée", w: 70, get: (r) => r.action },
+      { title: "Clos", w: 14, get: (r) => (r.closed ? "Oui" : "Non"), color: (r) => (r.closed ? null : RED) },
+      { title: "Par", w: 15, get: (r) => r.by },
+    ],
+    regs.filter((r) => r.type === "incident" && inPeriod(r.at, from, to)).sort(sortAt),
+    M + 12
+  );
+  return finish(ctx.doc, shop);
+}
+
+// ---------- Tableau des allergènes (affichage / remise au client) ----------
+export async function pdfAllergens(data) {
+  const { ALLERGENS, DISH_GROUPS } = await import("./allergens.js");
+  const shop = data.settings.shopName || "O'Délices";
+  const ctx = makeDoc("Allergènes présents dans nos plats", `Mis à jour le ${fmtDate(new Date())} - règlement (UE) 1169/2011 - X = contient, (x) = peut contenir (traces)`, shop);
+  const doc = ctx.doc;
+  const dishes = [...data.dishes].sort((a, b) => DISH_GROUPS.indexOf(a.group) - DISH_GROUPS.indexOf(b.group) || (a.order ?? 0) - (b.order ?? 0));
+  const nameW = 70;
+  const colW = (ctx.W - 2 * M - nameW) / ALLERGENS.length;
+  let y = M + 14;
+  const head = () => {
+    doc.setFillColor(28, 25, 23);
+    doc.rect(M, y, ctx.W - 2 * M, 26, "F");
+    doc.setTextColor(255);
+    doc.setFont("helvetica", "bold");
+    doc.setFontSize(8.5);
+    ALLERGENS.forEach((a, i) => doc.text(a.label, M + nameW + i * colW + colW / 2 + 1.3, y + 24.5, { angle: 90 }));
+    doc.setDrawColor(90);
+    ALLERGENS.forEach((a, i) => doc.line(M + nameW + i * colW, y + 2, M + nameW + i * colW, y + 26));
+    doc.setTextColor(0);
+    y += 26;
+  };
+  head();
+  let zebra = false;
+  let lastGroup = "";
+  for (const d of dishes) {
+    if (y > ctx.H - 16) {
+      doc.addPage();
+      ctx.header();
+      y = M + 14;
+      head();
+    }
+    if (d.group !== lastGroup) {
+      lastGroup = d.group;
+      doc.setFillColor(231, 229, 228);
+      doc.rect(M, y, ctx.W - 2 * M, 6, "F");
+      doc.setFont("helvetica", "bold");
+      doc.setFontSize(8.5);
+      doc.text(d.group.toUpperCase(), M + 1.5, y + 4.3);
+      y += 6;
+    }
+    if (zebra) {
+      doc.setFillColor(250, 250, 249);
+      doc.rect(M, y, ctx.W - 2 * M, 6.5, "F");
+    }
+    zebra = !zebra;
+    doc.setFont("helvetica", "normal");
+    doc.setFontSize(9);
+    doc.text(d.name + (d.verified ? "" : " *"), M + 1.5, y + 4.6);
+    ALLERGENS.forEach((a, i) => {
+      const cx = M + nameW + i * colW + colW / 2;
+      if (d.allergens?.includes(a.id)) {
+        doc.setFillColor(253, 230, 138);
+        doc.rect(cx - colW / 2 + 0.3, y + 0.3, colW - 0.6, 5.9, "F");
+        doc.setFont("helvetica", "bold");
+        doc.text("X", cx, y + 4.6, { align: "center" });
+        doc.setFont("helvetica", "normal");
+      } else if (d.traces?.includes(a.id)) doc.text("(x)", cx, y + 4.6, { align: "center" });
+    });
+    doc.setDrawColor(225);
+    doc.line(M, y + 6.5, ctx.W - M, y + 6.5);
+    y += 6.5;
+  }
+  doc.setFontSize(8);
+  doc.setTextColor(90);
+  if (dishes.some((d) => !d.verified)) doc.text("* à vérifier avec l'étiquette du produit", M, Math.min(y + 6, ctx.H - 10));
+  doc.text("Pour toute question sur les allergènes, adressez-vous au personnel.", M, Math.min(y + 11, ctx.H - 10));
+  doc.setTextColor(0);
+  return finish(doc, shop);
+}
+
+// ---------- Dossier complet pour un contrôle sanitaire ----------
+export async function pdfDossier(data, from, to, { photos = true } = {}) {
+  const shop = data.settings.shopName || "O'Délices";
+  const ctx = makeDoc("Dossier Plan de Maîtrise Sanitaire", period(from, to), shop);
+  const doc = ctx.doc;
+  shared = ctx;
+  try {
+    await pdfTemperatures(data, from, to);
+    await pdfProcess(data, from, to);
+    await pdfTrace(data, from, to, photos);
+    await pdfOil(data, from, to);
+    await pdfCleaning(data, from, to);
+    await pdfRegisters(data, from, to);
+    await pdfAllergens(data);
+  } finally {
+    shared = null;
+  }
+  // Page de garde + sommaire (page 1)
+  doc.setPage(1);
+  doc.setFont("helvetica", "bold");
+  doc.setFontSize(22);
+  doc.text(shop, M, 45);
+  doc.setFontSize(14);
+  doc.text("Registres d'hygiène (HACCP) - dossier pour contrôle sanitaire", M, 55);
+  doc.setFont("helvetica", "normal");
+  doc.setFontSize(11);
+  doc.text(period(from, to), M, 64);
+  doc.text(`Édité le ${fmtDate(new Date())} à ${fmtTime(new Date())}${data.settings.operator ? ` par ${data.settings.operator}` : ""}`, M, 71);
+  doc.setFont("helvetica", "bold");
+  doc.text("Sommaire", M, 88);
+  doc.setFont("helvetica", "normal");
+  let y = 96;
+  const seen = new Set();
+  for (const s of ctx.sections) {
+    if (seen.has(s.title)) continue;
+    seen.add(s.title);
+    doc.text(s.title, M + 4, y);
+    doc.text(`page ${s.page}`, ctx.W - M - 30, y);
+    y += 7;
+  }
+  const counts = [
+    ["Relevés de températures", data.temps.filter((t) => inPeriod(t.at, from, to)).length],
+    ["Produits tracés", data.trace.filter((t) => inPeriod(t.at, from, to)).length],
+    ["Contrôles cuisson / refroidissement", data.process.filter((t) => t.state === "done" && inPeriod(t.at, from, to)).length],
+    ["Contrôles / changements d'huile", data.oil.filter((t) => inPeriod(t.at, from, to)).length],
+    ["Nettoyages enregistrés", data.cleanLogs.filter((t) => inPeriod(t.at, from, to)).length],
+  ];
+  y += 6;
+  doc.setFontSize(9);
+  doc.setTextColor(90);
+  doc.text(counts.map(([l, n]) => `${l} : ${n}`).join("   -   "), M, y);
+  doc.setTextColor(0);
+  return finish(doc, shop);
 }

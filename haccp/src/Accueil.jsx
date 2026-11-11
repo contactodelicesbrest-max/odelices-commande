@@ -71,6 +71,18 @@ export default function Accueil({ go }) {
       text: cloud.state === "error" ? "La sauvegarde automatique ne fonctionne pas (voir Réglages)" : "Sauvegarde cloud en attente : connecte le téléphone à internet",
     });
 
+  // Registres périodiques
+  const lastReg = (type) => data.registers.filter((r) => r.type === type).sort((a, b) => b.at.localeCompare(a.at))[0];
+  const lt = lastReg("thermo");
+  if (!lt || daysSince(lt.at) >= 30) tasks.push({ tab: "registers", icon: Thermometer, text: "Vérification mensuelle des thermomètres (glace fondante)" });
+  const lp = data.registers.filter((r) => r.type === "pests" && r.kind === "visit").sort((a, b) => b.at.localeCompare(a.at))[0];
+  if (lp && daysSince(lp.at) >= 100) tasks.push({ tab: "registers", icon: AlertTriangle, text: "Passage dératisation : plus de 3 mois depuis le dernier" });
+  for (const r of data.registers.filter((x) => x.type === "incident" && !x.closed))
+    alerts.push({ tab: "registers", icon: AlertTriangle, text: `Incident en cours : ${r.description}` });
+  if (!data.registers.some((r) => r.type === "training")) tasks.push({ tab: "registers", icon: AlertTriangle, text: "Ajoute l'attestation de formation hygiène (Registres)" });
+  const unverified = data.dishes.filter((d) => !d.verified).length;
+  if (unverified) tasks.push({ tab: "allergens", icon: AlertTriangle, text: `Allergènes : ${unverified} élément(s) à vérifier` });
+
   const traceToday = data.trace.filter((t) => dayKey(t.at) === today).length;
 
   return (
@@ -120,6 +132,14 @@ export default function Accueil({ go }) {
         <button className="quick-btn q-print" onClick={() => setPrintOpen(true)}>
           <ReceiptText size={28} />
           <span>Récap / étiquettes du service</span>
+        </button>
+        <button className="quick-btn q-allergens" onClick={() => go("allergens")}>
+          <span style={{ fontSize: 26 }}>⚠️</span>
+          <span>Allergènes</span>
+        </button>
+        <button className="quick-btn q-registers" onClick={() => go("registers")}>
+          <span style={{ fontSize: 26 }}>📁</span>
+          <span>Registres & dossier contrôle</span>
         </button>
         <button className="quick-btn q-memo" onClick={() => go("memo")}>
           <BookOpen size={28} />

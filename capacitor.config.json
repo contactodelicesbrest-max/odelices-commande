@@ -2,5 +2,13 @@
   "appId": "fr.odelices.haccp",
   "appName": "O'Délices HACCP",
   "webDir": "dist-haccp",
-  "android": { "allowMixedContent": false }
+  "android": {
+    "allowMixedContent": false
+  },
+  "plugins": {
+    "LocalNotifications": {
+      "smallIcon": "ic_stat_haccp",
+      "iconColor": "#EA580C"
+    }
+  }
 }

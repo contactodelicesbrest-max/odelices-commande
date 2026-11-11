@@ -1,11 +1,12 @@
+import { DEFAULT_DISHES } from "./allergens.js";
 // Stockage local (IndexedDB) : les données restent sur le téléphone/tablette,
 // fonctionnent sans connexion internet, et peuvent être sauvegardées en JSON.
 
 const DB_NAME = "odelices-haccp";
-const DB_VERSION = 3;
+const DB_VERSION = 4;
 export const STORES = [
   "equipments", "temps", "trace", "fryers", "oil", "stock", "moves", "photos", "settings",
-  "process", "receptions", "cleanTasks", "cleanLogs", "invoices",
+  "process", "receptions", "cleanTasks", "cleanLogs", "invoices", "dishes", "registers",
 ];
 
 let dbPromise = null;
@@ -175,12 +176,20 @@ async function doSeed() {
   if (!(await getOne("settings", "seed-hood"))) {
     const now = new Date().toISOString();
     const tasks = await getAll("cleanTasks");
-    const old = tasks.find((t) => /hotte/i.test(t.name));
+    const old = tasks.find((t) => t.name === "Hotte et filtres");
     if (old) await put("cleanTasks", { ...old, name: "Hotte : filtres", hood: true, updatedAt: now });
-    else await put("cleanTasks", { id: uid(), name: "Hotte : filtres", freq: "monthly", product: "Dégraissant (trempage ou lave-vaisselle)", hood: true, order: 99, createdAt: now, updatedAt: now });
+    else if (!tasks.some((t) => /hotte\s*:\s*filtres/i.test(t.name)))
+      await put("cleanTasks", { id: uid(), name: "Hotte : filtres", freq: "monthly", product: "Dégraissant (trempage ou lave-vaisselle)", hood: true, order: 99, createdAt: now, updatedAt: now });
     if (!tasks.some((t) => /conduit/i.test(t.name)))
       await put("cleanTasks", { id: uid(), name: "Hotte + conduit : nettoyage complet (société)", freq: "yearly", product: "Société spécialisée — garder l'attestation", hood: true, order: 100, createdAt: now, updatedAt: now });
     await put("settings", { id: "seed-hood", createdAt: now, updatedAt: now });
+  }
+  // Allergènes : composants de la carte pré-remplis (à vérifier)
+  if (!(await getOne("settings", "seed-dishes"))) {
+    const now = new Date().toISOString();
+    if (!(await getAll("dishes")).length)
+      await putMany("dishes", DEFAULT_DISHES.map((d, i) => ({ id: uid(), ...d, verified: false, order: i, createdAt: now, updatedAt: now })));
+    await put("settings", { id: "seed-dishes", createdAt: now, updatedAt: now });
   }
   const eq = await getAll("equipments");
   const settings = await getOne("settings", "main");
