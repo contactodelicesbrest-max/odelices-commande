@@ -48,6 +48,9 @@ function Shell() {
   useEffect(() => onCloudStatus(setCloud), []);
   const tabRef = useRef(tab);
   tabRef.current = tab;
+  // Stock (et factures) masqué par défaut : réactivable dans Réglages
+  const showStock = !!data.settings.showStock;
+  const visibleTabs = TABS.filter((t) => t.id !== "stock" || showStock);
   const current = EXTRA[tab] || TABS.find((t) => t.id === tab);
 
   useEffect(() => {
@@ -127,8 +130,8 @@ function Shell() {
       <main>
         <C go={go} intent={intent} clearIntent={() => setIntent(null)} key={tab} />
       </main>
-      <nav className="tabbar">
-        {TABS.map((t) => (
+      <nav className={"tabbar" + (showStock ? "" : " five")}>
+        {visibleTabs.map((t) => (
           <button key={t.id} className={"tab" + (tab === t.id ? " active" : "")} onClick={() => go(t.id)}>
             <t.icon size={22} />
             <span>{t.label}</span>

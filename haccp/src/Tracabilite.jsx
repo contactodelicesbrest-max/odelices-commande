@@ -357,7 +357,7 @@ function TraceForm({ initial, onClose }) {
           </select>
         </Field>
       )}
-      {isNew && f.kind !== "homemade" && !(f.kind === "thawed" && f.frozenId) && data.stock.length > 0 && (
+      {isNew && f.kind !== "homemade" && !(f.kind === "thawed" && f.frozenId) && data.settings.showStock && data.stock.length > 0 && (
         <Field label="Prendre dans le stock (remplit tout automatiquement)">
           <select className="input" value={f.stockId} onChange={(e) => pickStock(e.target.value)}>
             <option value="">— Nouveau produit (photo) —</option>

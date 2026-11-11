@@ -302,3 +302,5 @@ input, select { font: inherit; }
 .q-allergens { background: #fef3c7; color: #92400e; }
 .q-registers { background: #e0f2fe; color: #075985; }
 .card.dossier { border: 2px solid var(--brand); }
+
+.tabbar.five { grid-template-columns: repeat(5, 1fr); }

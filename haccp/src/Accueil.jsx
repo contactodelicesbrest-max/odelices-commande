@@ -66,9 +66,9 @@ export default function Accueil({ go }) {
       (daysUntil(d) < 0 ? alerts : tasks).push({ tab: "trace", icon: ClipboardCheck, text: `${t.product}${t.lot ? ` (lot ${t.lot})` : ""} : ${dlcLabel(d)}` });
   }
 
-  const low = data.stock.filter(isLow);
+  const low = data.settings.showStock ? data.stock.filter(isLow) : [];
   if (low.length) tasks.push({ tab: "stock", icon: Package, text: `${low.length} produit(s) en stock bas : ${low.map((s) => s.name).slice(0, 5).join(", ")}${low.length > 5 ? "…" : ""}` });
-  for (const s of data.stock.filter(stockExpired)) alerts.push({ tab: "stock", icon: Package, text: `Stock : ${s.name} — DLC dépassée (${fmtDate(s.dlc)})` });
+  for (const s of data.settings.showStock ? data.stock.filter(stockExpired) : []) alerts.push({ tab: "stock", icon: Package, text: `Stock : ${s.name} — DLC dépassée (${fmtDate(s.dlc)})` });
 
   if (cloud && (cloud.state === "error" || (cloud.lastOk ? daysSince(cloud.lastOk) >= 2 : data.temps.length + data.trace.length > 10)))
     (cloud.state === "error" ? alerts : tasks).push({
@@ -127,10 +127,12 @@ export default function Accueil({ go }) {
           <Droplets size={28} />
           <span>Huile</span>
         </button>
-        <button className="quick-btn q-stock" onClick={() => go("stock")}>
-          <Package size={28} />
-          <span>Stock</span>
-        </button>
+        {data.settings.showStock && (
+          <button className="quick-btn q-stock" onClick={() => go("stock")}>
+            <Package size={28} />
+            <span>Stock</span>
+          </button>
+        )}
         <button className="quick-btn q-clean" onClick={() => go("clean")}>
           <Sparkles size={28} />
           <span>Nettoyage</span>

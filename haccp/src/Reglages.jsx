@@ -88,6 +88,11 @@ export default function Reglages({ go }) {
         </Field>
       </div>
 
+      <label className="check">
+        <input type="checkbox" checked={!!s.showStock} onChange={(e) => updateSettings({ showStock: e.target.checked })} />
+        Afficher l'onglet Stock (produits, factures fournisseurs)
+      </label>
+
       <h3 className="section-title">Viandes cuites puis conservées au froid</h3>
       <div className="card pad">
         <Field label="Liste (séparée par des virgules)" hint="Ces viandes suivent le circuit : cuisson → refroidissement rapide → frigo (+3 °C, J+3) → remise en température. Le kebab est traité à part (broche).">
