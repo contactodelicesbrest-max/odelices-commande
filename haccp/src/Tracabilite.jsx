@@ -159,7 +159,7 @@ function TraceRow({ t, onClick, onDone }) {
         <span className="row gap-s wrap">
           <Badge tone={TRACE_STATUS[t.status]?.tone}>{TRACE_STATUS[t.status]?.label}</Badge>
           {t.status === "open" && d && <Badge tone={dlcTone(d)}>{dlcLabel(d)}</Badge>}
-          {t.status === "open" && (t.saladette || []).some((e) => dayKey(e.at) === todayKey()) && <Badge tone="info">🥗 En saladette</Badge>}
+          {t.status === "open" && (t.saladette || []).some((e) => dayKey(e.at) === todayKey() && !e.backAt) && <Badge tone="info">🥗 En saladette</Badge>}
         </span>
       </span>
       {onDone && (

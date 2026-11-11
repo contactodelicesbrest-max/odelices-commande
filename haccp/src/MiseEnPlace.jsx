@@ -10,10 +10,15 @@ export const SALADETTE_RULE =
 
 // Lots sortis en saladette pour un service donné (aujourd'hui)
 export const inSaladette = (t, moment = momentOfDay()) =>
-  (t.saladette || []).some((e) => dayKey(e.at) === todayKey() && e.moment === moment);
+  (t.saladette || []).some((e) => dayKey(e.at) === todayKey() && e.moment === moment && !e.backAt);
+// Encore en saladette maintenant (sorti aujourd'hui, pas encore remis au frigo)
+export const inSaladetteNow = (t) => t.status === "open" && (t.saladette || []).some((e) => dayKey(e.at) === todayKey() && !e.backAt);
 
 export default function MiseEnPlace({ onClose }) {
-  const { data, saveMany } = useData();
+  const { data, saveMany, save } = useData();
+  const nowIn = data.trace.filter(inSaladetteNow);
+  const [mode, setMode] = useState(nowIn.length && new Date().getHours() >= 21 ? "end" : "start");
+  const [keep, setKeep] = useState(() => new Set(nowIn.map((t) => t.id)));
   const [moment, setMoment] = useState(momentOfDay());
   const lots = useMemo(
     () =>
@@ -36,6 +41,66 @@ export default function MiseEnPlace({ onClose }) {
     onClose();
   };
 
+  const backToFridge = async () => {
+    const at = new Date().toISOString();
+    const by = data.settings.operator || "";
+    const close = (t) => ({ ...t, saladette: (t.saladette || []).map((e) => (dayKey(e.at) === todayKey() && !e.backAt ? { ...e, backAt: at, backBy: by } : e)) });
+    const back = nowIn.filter((t) => keep.has(t.id)).map(close);
+    const thrown = nowIn
+      .filter((t) => !keep.has(t.id))
+      .map((t) => ({ ...close(t), status: "thrown", closedAt: at, comment: [t.comment, "Jeté en fin de service (saladette)"].filter(Boolean).join(" — ") }));
+    if (back.length || thrown.length) await saveMany("trace", [...back, ...thrown]);
+    onClose();
+  };
+
+  if (mode === "end")
+    return (
+      <Sheet
+        title="Fin de service — saladette"
+        onClose={onClose}
+        footer={
+          <button className="btn btn-primary btn-block" onClick={backToFridge} disabled={!nowIn.length}>
+            <CheckCircle2 size={20} /> Remettre au frigo ({keep.size}){nowIn.length - keep.size > 0 ? ` · jeter ${nowIn.length - keep.size}` : ""}
+          </button>
+        }
+      >
+        <Chips options={[{ value: "start", label: "Mise en place" }, { value: "end", label: "Fin de service" }]} value={mode} onChange={(v) => v && setMode(v)} />
+        <div className="alert info">ℹ️ Remets aussitôt au frigo ce qui reste, si la saladette est restée à +4 °C maximum. Sinon, ou si le produit a traîné hors du froid, jette-le.</div>
+        {!nowIn.length && <p className="muted">Rien en saladette pour le moment.</p>}
+        <div className="checks">
+          {nowIn.map((t) => {
+            const d = effectiveDlc(t);
+            const ok = keep.has(t.id);
+            return (
+              <div key={t.id} className={"check" + (ok ? "" : " bad")}>
+                <span className="list-main">
+                  <strong>{t.product}</strong>
+                  {d && <span className="muted small">{dlcLabel(d)}</span>}
+                </span>
+                <div className="row gap-s">
+                  <button className={"btn btn-sm " + (ok ? "btn-ok" : "btn-ghost")} onClick={() => setKeep((s) => new Set([...s, t.id]))}>
+                    ❄️ Frigo
+                  </button>
+                  <button
+                    className={"btn btn-sm " + (!ok ? "btn-ko" : "btn-ghost")}
+                    onClick={() =>
+                      setKeep((s) => {
+                        const n = new Set(s);
+                        n.delete(t.id);
+                        return n;
+                      })
+                    }
+                  >
+                    🗑️ Jeté
+                  </button>
+                </div>
+              </div>
+            );
+          })}
+        </div>
+      </Sheet>
+    );
+
   return (
     <Sheet
       title="Mise en place saladette"
@@ -46,6 +111,7 @@ export default function MiseEnPlace({ onClose }) {
         </button>
       }
     >
+      <Chips options={[{ value: "start", label: "Mise en place" }, { value: "end", label: `Fin de service${nowIn.length ? ` (${nowIn.length})` : ""}` }]} value={mode} onChange={(v) => v && setMode(v)} />
       <Chips options={["Matin", "Soir"]} value={moment} onChange={(v) => v && setMoment(v)} />
       <div className="alert info">ℹ️ {SALADETTE_RULE}</div>
       {!hasSaladette && (

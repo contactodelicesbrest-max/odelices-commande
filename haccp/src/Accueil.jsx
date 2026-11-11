@@ -1,5 +1,5 @@
 import { stockExpired } from "./products.js";
-import MiseEnPlace from "./MiseEnPlace.jsx";
+import MiseEnPlace, { inSaladetteNow } from "./MiseEnPlace.jsx";
 import ServicePrint from "./ServicePrint.jsx";
 import { ReceiptText } from "lucide-react";
 import { useEffect, useState } from "react";
@@ -88,6 +88,11 @@ export default function Accueil({ go }) {
   if (!data.registers.some((r) => r.type === "training")) tasks.push({ tab: "registers", icon: AlertTriangle, text: "Ajoute l'attestation de formation hygiène (Registres)" });
   const unverified = data.dishes.filter((d) => !d.verified).length;
   if (unverified) tasks.push({ tab: "allergens", icon: AlertTriangle, text: `Allergènes : ${unverified} élément(s) à vérifier` });
+
+  // Fin de service : lots restés en saladette
+  const salNow = data.trace.filter(inSaladetteNow);
+  if (salNow.length && new Date().getHours() >= 21)
+    tasks.push({ tab: "home", icon: AlertTriangle, text: `Fin de service : ${salNow.length} lot(s) encore en saladette — à remettre au frigo (bouton « Mise en place saladette »)` });
 
   const traceToday = data.trace.filter((t) => dayKey(t.at) === today).length;
 

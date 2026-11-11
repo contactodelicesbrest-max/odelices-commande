@@ -278,7 +278,7 @@ export function buildRecap(data, moment, extra = {}) {
   }
 
   // Lots sortis en saladette pour ce service
-  const sal = data.trace.filter((t) => t.status === "open" && (t.saladette || []).some((e) => dayKey(e.at) === today && e.moment === moment));
+  const sal = data.trace.filter((t) => t.status === "open" && (t.saladette || []).some((e) => dayKey(e.at) === today && e.moment === moment && !e.backAt));
   if (sal.length) {
     p.rule(width).bold(true).line("EN SALADETTE (+4C MAX)").bold(false);
     for (const t of sal) {
