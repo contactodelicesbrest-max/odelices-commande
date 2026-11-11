@@ -1,6 +1,7 @@
 import { useMemo, useState } from "react";
-import { Package, Plus, Minus, Search, ShoppingCart, Trash2, CheckCircle2, History } from "lucide-react";
+import { Package, Plus, Minus, Search, ShoppingCart, Trash2, CheckCircle2, History, FileText } from "lucide-react";
 import LabelPhoto from "./LabelPhoto.jsx";
+import InvoiceForm, { InvoiceList } from "./Invoice.jsx";
 import { PhotoThumb } from "./ui.jsx";
 import { detectType, openingAdvice } from "./products.js";
 import { useData } from "./store.jsx";
@@ -27,6 +28,7 @@ export default function Stock() {
   const [edit, setEdit] = useState(null);
   const [move, setMove] = useState(null);
   const [showMoves, setShowMoves] = useState(false);
+  const [invoice, setInvoice] = useState(null);
 
   const items = useMemo(() => [...data.stock].sort((a, b) => a.name.localeCompare(b.name)), [data.stock]);
   const low = items.filter(isLow);
@@ -52,9 +54,14 @@ export default function Stock() {
             {items.length} produit(s) · {low.length} en alerte
           </div>
         </div>
-        <button className="btn btn-primary" onClick={() => setEdit({})}>
-          <Plus size={20} /> Ajouter au stock
-        </button>
+        <div className="col gap-s">
+          <button className="btn btn-primary" onClick={() => setInvoice({})}>
+            <FileText size={20} /> Facture
+          </button>
+          <button className="btn btn-sm btn-ghost" onClick={() => setEdit({})}>
+            <Plus size={16} /> Ajouter un produit
+          </button>
+        </div>
       </div>
       {expired.length > 0 && (
         <div className="alert ko">
@@ -117,6 +124,9 @@ export default function Stock() {
         ))}
       </div>
 
+      <h3 className="section-title">Factures</h3>
+      <InvoiceList onOpen={setInvoice} />
+      {invoice && <InvoiceForm initial={invoice.id ? invoice : null} onClose={() => setInvoice(null)} />}
       <p className="muted small rule">ℹ️ PEPS (premier entré, premier sorti) : ranger les nouvelles livraisons derrière et utiliser d'abord les produits dont la DLC est la plus proche.</p>
 
       {edit && <StockForm initial={edit} onClose={() => setEdit(null)} onMove={(kind) => { setMove({ item: edit, kind }); setEdit(null); }} />}

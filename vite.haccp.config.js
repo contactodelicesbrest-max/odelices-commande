@@ -8,5 +8,14 @@ export default defineConfig({
   base: "./",
   publicDir: resolve(__dirname, "public"),
   plugins: [react()],
-  build: { outDir: resolve(__dirname, "dist-haccp"), emptyOutDir: true },
+  build: {
+    outDir: resolve(__dirname, "dist-haccp"),
+    emptyOutDir: true,
+    rollupOptions: {
+      output: {
+        // L'appli Android sert mal les fichiers .mjs : on les renomme en .js (lecteur PDF)
+        assetFileNames: (info) => (info.name && info.name.endsWith(".mjs") ? "assets/[name]-[hash].js" : "assets/[name]-[hash][extname]"),
+      },
+    },
+  },
 });

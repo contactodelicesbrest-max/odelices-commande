@@ -28,7 +28,7 @@ export const PRODUCT_TYPES = [
     advice: "Poisson frais : J+1 maximum, entre 0 et +2 °C. Surimi : suivre l'étiquette, sinon J+2." },
   { id: "creme", label: "Crème / lait", keys: ["creme", "lait ", "lait)", "cream", "chantilly"], days: 3, cat: "Crèmerie / fromages", unit: "L",
     advice: "Crème et lait entamés : 3 jours maximum au frigo (UHT compris une fois ouvert)." },
-  { id: "laitier", label: "Yaourt / fromage blanc", keys: ["yaourt", "yogourt", "fromage blanc", "faisselle", "skyr", "tzatziki"], days: 3, cat: "Crèmerie / fromages", unit: "kg",
+  { id: "laitier", label: "Yaourt / fromage blanc", keys: ["yaourt", "yogourt", "yogurt", "ayran", "fromage blanc", "faisselle", "skyr", "tzatziki"], days: 3, cat: "Crèmerie / fromages", unit: "kg",
     advice: "Produit laitier frais entamé : 3 jours maximum, à +4 °C." },
   { id: "fromage_frais", label: "Fromage frais / mozzarella", keys: ["mozzarella", "chevre", "feta", "ricotta", "mascarpone", "burrata", "boursin", "fromage frais", "kiri"], days: 3, cat: "Crèmerie / fromages", unit: "kg",
     advice: "Fromage frais entamé : 3 jours maximum (mozzarella en saumure : 2 à 3 jours)." },

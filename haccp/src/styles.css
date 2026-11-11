@@ -276,3 +276,7 @@ input, select { font: inherit; }
 
 .card.hood.late { outline: 2px solid #fca5a5; }
 .hood-hist { border-top: 1px solid var(--line); }
+
+.big-check { width: 24px; height: 24px; flex-shrink: 0; accent-color: var(--ok); }
+.input.qty { width: 90px; flex-shrink: 0; }
+.nowrap { white-space: nowrap; }

@@ -2,10 +2,10 @@
 // fonctionnent sans connexion internet, et peuvent être sauvegardées en JSON.
 
 const DB_NAME = "odelices-haccp";
-const DB_VERSION = 2;
+const DB_VERSION = 3;
 export const STORES = [
   "equipments", "temps", "trace", "fryers", "oil", "stock", "moves", "photos", "settings",
-  "process", "receptions", "cleanTasks", "cleanLogs",
+  "process", "receptions", "cleanTasks", "cleanLogs", "invoices",
 ];
 
 let dbPromise = null;
