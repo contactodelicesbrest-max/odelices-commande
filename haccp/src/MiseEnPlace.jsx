@@ -9,6 +9,16 @@ export const SALADETTE_RULE =
   "Saladette à +4 °C maximum pendant le service (relève sa température). À la commande : réchauffer à la plancha jusqu'à +63 °C à cœur. En fin de service : remettre aussitôt au frigo ce qui reste si la saladette est restée à +4 °C, sinon jeter. Ne jamais dépasser la date limite du lot ; ce qui a été réchauffé et non servi est jeté.";
 
 // Lots sortis en saladette pour un service donné (aujourd'hui)
+// Heure de fin de service (réglable dans Réglages, 22 h par défaut)
+export const endOfServiceHour = (settings) => {
+  const [h, m] = String(settings?.serviceEnd || "22:00").split(":").map(Number);
+  return { h: Number.isFinite(h) ? h : 22, m: Number.isFinite(m) ? m : 0 };
+};
+export const isAfterServiceEnd = (settings, d = new Date()) => {
+  const { h, m } = endOfServiceHour(settings);
+  return d.getHours() * 60 + d.getMinutes() >= h * 60 + m;
+};
+
 export const inSaladette = (t, moment = momentOfDay()) =>
   (t.saladette || []).some((e) => dayKey(e.at) === todayKey() && e.moment === moment && !e.backAt);
 // Encore en saladette maintenant (sorti aujourd'hui, pas encore remis au frigo)
@@ -17,7 +27,7 @@ export const inSaladetteNow = (t) => t.status === "open" && (t.saladette || []).
 export default function MiseEnPlace({ onClose }) {
   const { data, saveMany, save } = useData();
   const nowIn = data.trace.filter(inSaladetteNow);
-  const [mode, setMode] = useState(nowIn.length && new Date().getHours() >= 22 ? "end" : "start");
+  const [mode, setMode] = useState(nowIn.length && isAfterServiceEnd(data.settings) ? "end" : "start");
   const [keep, setKeep] = useState(() => new Set(nowIn.map((t) => t.id)));
   const [moment, setMoment] = useState(momentOfDay());
   const lots = useMemo(

@@ -1,5 +1,5 @@
 import { stockExpired } from "./products.js";
-import MiseEnPlace, { inSaladetteNow } from "./MiseEnPlace.jsx";
+import MiseEnPlace, { inSaladetteNow, isAfterServiceEnd } from "./MiseEnPlace.jsx";
 import ServicePrint from "./ServicePrint.jsx";
 import { ReceiptText } from "lucide-react";
 import { useEffect, useState } from "react";
@@ -91,7 +91,7 @@ export default function Accueil({ go }) {
 
   // Fin de service : lots restés en saladette
   const salNow = data.trace.filter(inSaladetteNow);
-  if (salNow.length && new Date().getHours() >= 22)
+  if (salNow.length && isAfterServiceEnd(data.settings))
     tasks.push({ tab: "home", icon: AlertTriangle, text: `Fin de service : ${salNow.length} lot(s) encore en saladette — à remettre au frigo (bouton « Mise en place saladette »)` });
 
   const traceToday = data.trace.filter((t) => dayKey(t.at) === today).length;

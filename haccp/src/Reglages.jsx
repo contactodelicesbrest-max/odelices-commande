@@ -93,6 +93,13 @@ export default function Reglages({ go }) {
         Afficher l'onglet Stock (produits, factures fournisseurs)
       </label>
 
+      <h3 className="section-title">🥗 Saladette</h3>
+      <div className="card pad">
+        <Field label="Heure de fin de service" hint="À partir de cette heure, « Mise en place saladette » s'ouvre sur « Fin de service » et l'accueil rappelle de remettre au frigo ce qui reste.">
+          <input className="input" type="time" value={s.serviceEnd || "22:00"} onChange={(e) => updateSettings({ serviceEnd: e.target.value || "22:00" })} />
+        </Field>
+      </div>
+
       <h3 className="section-title">Viandes cuites puis conservées au froid</h3>
       <div className="card pad">
         <Field label="Liste (séparée par des virgules)" hint="Ces viandes suivent le circuit : cuisson → refroidissement rapide → frigo (+3 °C, J+3) → remise en température. Le kebab est traité à part (broche).">
