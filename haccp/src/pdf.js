@@ -349,7 +349,8 @@ export async function pdfRegisters(data, from, to) {
     M + 12
   );
 
-  next("Lutte contre les nuisibles", period(from, to));
+  const pc = data.settings.pestContract;
+  next("Lutte contre les nuisibles", pc?.company ? `Contrat avec ${pc.company}${pc.freq ? ` (${pc.freq})` : ""}${pc.ref ? ` - n° ${pc.ref}` : ""} - passages et rapports dans le registre de sécurité` : period(from, to));
   await table(
     ctx,
     [

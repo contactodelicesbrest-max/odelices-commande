@@ -76,7 +76,7 @@ export default function Accueil({ go }) {
   const lt = lastReg("thermo");
   if (!lt || daysSince(lt.at) >= 30) tasks.push({ tab: "registers", icon: Thermometer, text: "Vérification mensuelle des thermomètres (glace fondante)" });
   const lp = data.registers.filter((r) => r.type === "pests" && r.kind === "visit").sort((a, b) => b.at.localeCompare(a.at))[0];
-  if (lp && daysSince(lp.at) >= 100) tasks.push({ tab: "registers", icon: AlertTriangle, text: "Passage dératisation : plus de 3 mois depuis le dernier" });
+  if (lp && !data.settings.pestContract?.company && daysSince(lp.at) >= 100) tasks.push({ tab: "registers", icon: AlertTriangle, text: "Passage dératisation : plus de 3 mois depuis le dernier" });
   for (const r of data.registers.filter((x) => x.type === "incident" && !x.closed))
     alerts.push({ tab: "registers", icon: AlertTriangle, text: `Incident en cours : ${r.description}` });
   if (!data.registers.some((r) => r.type === "training")) tasks.push({ tab: "registers", icon: AlertTriangle, text: "Ajoute l'attestation de formation hygiène (Registres)" });

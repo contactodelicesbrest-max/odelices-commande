@@ -28,7 +28,9 @@ export const REG_TYPES = {
 const INCIDENT_CAT = { client: "Réclamation client", fournisseur: "Fournisseur / produit", equipement: "Panne d'équipement", autre: "Autre" };
 
 export default function Registres() {
-  const { data } = useData();
+  const { data, updateSettings } = useData();
+  const pc = data.settings.pestContract || null;
+  const [pcEdit, setPcEdit] = useState(false);
   const [form, setForm] = useState(null);
   const [from, setFrom] = useState(dayKey(addDays(new Date(), -90)));
   const [to, setTo] = useState(todayKey());
@@ -78,7 +80,8 @@ export default function Registres() {
       {Object.entries(REG_TYPES).map(([type, def]) => {
         const list = regs.filter((r) => r.type === type);
         const last = list[0];
-        const due = def.every && (!last || daysSince(last.at) >= def.every);
+        const paper = type === "pests" && pc?.company;
+        const due = !paper && def.every && (!last || daysSince(last.at) >= def.every);
         return (
           <div key={type} className="day-group">
             <div className="row between">
@@ -88,7 +91,22 @@ export default function Registres() {
               </button>
             </div>
             <p className="muted small rule">ℹ️ {def.rule}</p>
-            {def.every && (
+            {type === "pests" && (
+              <div className={"alert " + (paper ? "ok" : "info")}>
+                {paper ? (
+                  <>
+                    ✅ Contrat avec <strong>{pc.company}</strong>
+                    {pc.freq ? ` (${pc.freq})` : ""} — passages et rapports notés dans le <strong>registre de sécurité</strong>.
+                  </>
+                ) : (
+                  "Tu as un contrat de dératisation noté dans ton registre de sécurité ? Indique-le ici."
+                )}{" "}
+                <button className="btn btn-sm btn-ghost" onClick={() => setPcEdit(true)}>
+                  {paper ? "Modifier" : "Indiquer mon contrat"}
+                </button>
+              </div>
+            )}
+            {def.every && !paper && (
               <div className={"alert " + (due ? "warn" : "ok")}>
                 {last ? `Dernier : ${fmtDate(last.at)}` : "Jamais enregistré"}
                 {last && ` · prochain conseillé : ${fmtDate(dayKey(addDays(new Date(last.at), def.every)))}`}
@@ -117,6 +135,7 @@ export default function Registres() {
         );
       })}
       {form && <RegForm initial={form} onClose={() => setForm(null)} />}
+      {pcEdit && <ContractForm initial={pc || {}} onClose={() => setPcEdit(false)} onSave={(v) => updateSettings({ pestContract: v })} />}
     </div>
   );
 }
@@ -284,6 +303,48 @@ function RegForm({ initial, onClose }) {
       {!isNew && type === "pests" && f.kind === "visit" && (
         <p className="muted small">Prochain passage conseillé : {fmtDate(dayKey(addDays(new Date(initial.at), 91)))} ({daysUntil(dayKey(addDays(new Date(initial.at), 91)))} j)</p>
       )}
+    </Sheet>
+  );
+}
+
+function ContractForm({ initial, onClose, onSave }) {
+  const [company, setCompany] = useState(initial.company || "");
+  const [freq, setFreq] = useState(initial.freq || "tous les 3 mois");
+  const [ref, setRef] = useState(initial.ref || "");
+  return (
+    <Sheet
+      title="Contrat nuisibles (dératisation)"
+      onClose={onClose}
+      footer={
+        <div className="row gap">
+          {initial.company && (
+            <button className="btn btn-ghost danger" onClick={() => (onSave(null), onClose())}>
+              Retirer
+            </button>
+          )}
+          <button
+            className="btn btn-primary btn-block"
+            onClick={() => {
+              if (!company.trim()) return alert("Indique le nom de la société.");
+              onSave({ company: company.trim(), freq: freq.trim(), ref: ref.trim(), paper: true });
+              onClose();
+            }}
+          >
+            <CheckCircle2 size={20} /> Enregistrer
+          </button>
+        </div>
+      }
+    >
+      <Field label="Société">
+        <input className="input" value={company} onChange={(e) => setCompany(e.target.value)} />
+      </Field>
+      <Field label="Fréquence des passages">
+        <input className="input" value={freq} onChange={(e) => setFreq(e.target.value)} />
+      </Field>
+      <Field label="N° de contrat (facultatif)">
+        <input className="input" value={ref} onChange={(e) => setRef(e.target.value)} />
+      </Field>
+      <p className="muted small">Les passages et rapports restent dans ton registre de sécurité : l'appli ne te rappellera pas les passages. Tu peux toujours noter ici une observation (traces, insectes) et l'action menée.</p>
     </Sheet>
   );
 }
