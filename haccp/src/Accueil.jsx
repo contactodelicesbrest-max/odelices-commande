@@ -91,7 +91,7 @@ export default function Accueil({ go }) {
 
   // Fin de service : lots restés en saladette
   const salNow = data.trace.filter(inSaladetteNow);
-  if (salNow.length && new Date().getHours() >= 21)
+  if (salNow.length && new Date().getHours() >= 22)
     tasks.push({ tab: "home", icon: AlertTriangle, text: `Fin de service : ${salNow.length} lot(s) encore en saladette — à remettre au frigo (bouton « Mise en place saladette »)` });
 
   const traceToday = data.trace.filter((t) => dayKey(t.at) === today).length;

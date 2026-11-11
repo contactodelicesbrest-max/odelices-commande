@@ -17,7 +17,7 @@ export const inSaladetteNow = (t) => t.status === "open" && (t.saladette || []).
 export default function MiseEnPlace({ onClose }) {
   const { data, saveMany, save } = useData();
   const nowIn = data.trace.filter(inSaladetteNow);
-  const [mode, setMode] = useState(nowIn.length && new Date().getHours() >= 21 ? "end" : "start");
+  const [mode, setMode] = useState(nowIn.length && new Date().getHours() >= 22 ? "end" : "start");
   const [keep, setKeep] = useState(() => new Set(nowIn.map((t) => t.id)));
   const [moment, setMoment] = useState(momentOfDay());
   const lots = useMemo(
