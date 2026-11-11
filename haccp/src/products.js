@@ -120,3 +120,23 @@ function toUnit(n, u, label) {
   if (u === "cl") return { qty: +(n / 100).toFixed(3), unit: "L", label };
   return { qty: n, unit: u === "l" ? "L" : u, label };
 }
+
+// ---------- DLC ou DDM ? ----------
+// Si le type de date n'a pas été indiqué, les produits stables (surgelés, épicerie, boissons,
+// huile, emballages…) ont une DDM : une fois passée, ils restent consommables (qualité moindre).
+const DDM_CATEGORIES = ["Surgelés", "Épicerie", "Boissons", "Pains", "Emballages", "Hygiène"];
+export function isDdm(item) {
+  if (item.dlcType === "DDM") return true;
+  if (item.dlcType === "DLC") return false;
+  if (DDM_CATEGORIES.includes(item.category)) return true;
+  const t = detectType(item.name || item.product || "");
+  return !!t && (t.days === null || ["frites", "pane", "huile", "sec", "boisson", "pain", "sauce"].includes(t.id));
+}
+// Produit du stock dont la DLC (et pas la DDM) est dépassée : interdit, à jeter
+export const stockExpired = (s) => !!s.dlc && (s.qty || 0) > 0 && !isDdm(s) && daysBefore(s.dlc) < 0;
+export const stockDdmPassed = (s) => !!s.dlc && (s.qty || 0) > 0 && isDdm(s) && daysBefore(s.dlc) < 0;
+function daysBefore(d) {
+  const a = new Date(new Date().toISOString().slice(0, 10) + "T00:00:00");
+  const b = new Date(String(d).slice(0, 10) + "T00:00:00");
+  return Math.round((b - a) / 86400000);
+}

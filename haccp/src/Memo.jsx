@@ -64,10 +64,10 @@ export default function Memo() {
         <p className="small muted">Sources : décret n° 2008-184 du 26 février 2008 ; règlement (UE) 2017/2158 (acrylamide).</p>
       </div>
 
-      <h3 className="section-title">📦 Stock et produits entamés</h3>
+      <h3 className="section-title">📦 Produits entamés</h3>
       <div className="card pad">
         <ul>
-          <li>À l'arrivée : frais à +4 °C max, viande hachée +2 °C, surgelés -18 °C. Refuser un produit chaud, abîmé ou à la date trop courte. Ranger tout de suite (surgelés d'abord).</li>
+          <li><strong>DLC</strong> dépassée = interdit, à jeter. <strong>DDM</strong> passée = encore consommable si l'emballage est intact (surgelés, épicerie, boissons, huile…).</li>
           <li>PEPS : premier entré, premier sorti — utiliser d'abord la date la plus proche.</li>
         </ul>
         <span className="field-label">Durée maximale après ouverture (si l'étiquette n'indique rien)</span>

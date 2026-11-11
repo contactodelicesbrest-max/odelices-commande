@@ -271,7 +271,7 @@ export async function pdfProcess(data, from, to) {
       { title: "Opération", w: 25, get: (t) => labels[t.kind] },
       { title: "Produit", w: 40, get: (t) => t.product },
       { title: "Début", w: 25, get: (t) => (t.startAt ? `${fmtTime(t.startAt)} - ${fmtNum(t.startTemp)} °C` : "") },
-      { title: "Fin / mesure", w: 25, get: (t) => `${fmtTime(t.at)} - ${fmtNum(t.endTemp)} °C` },
+      { title: "Fin / mesure", w: 25, get: (t) => `${fmtTime(t.at)} - ${Number.isFinite(t.endTemp) ? fmtNum(t.endTemp) + " °C" : "auto (non mesuré)"}` },
       { title: "Durée", w: 13, get: (t) => (Number.isFinite(t.minutes) ? `${t.minutes} min` : "") },
       { title: "Conforme", w: 15, get: (t) => (t.ok ? "Oui" : "NON"), color: (t) => (t.ok ? null : RED) },
       { title: "Action corrective / commentaire", w: 55, get: (t) => [t.action, t.comment].filter(Boolean).join(" - ") },

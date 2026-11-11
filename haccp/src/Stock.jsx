@@ -3,7 +3,7 @@ import { Package, Plus, Minus, Search, ShoppingCart, Trash2, CheckCircle2, Histo
 import LabelPhoto from "./LabelPhoto.jsx";
 import InvoiceForm, { InvoiceList } from "./Invoice.jsx";
 import { PhotoThumb } from "./ui.jsx";
-import { detectType, openingAdvice } from "./products.js";
+import { detectType, openingAdvice, isDdm, stockExpired, stockDdmPassed } from "./products.js";
 import { allergensFromText, allergenById } from "./allergens.js";
 import { useData } from "./store.jsx";
 import { Sheet, Field, Chips, Badge, Empty } from "./ui.jsx";
@@ -33,7 +33,7 @@ export default function Stock() {
 
   const items = useMemo(() => [...data.stock].sort((a, b) => a.name.localeCompare(b.name)), [data.stock]);
   const low = items.filter(isLow);
-  const expired = items.filter((s) => s.dlc && (s.qty || 0) > 0 && daysUntil(s.dlc) < 0);
+  const expired = items.filter(stockExpired);
   const filtered = items.filter(
     (s) => (!cat || s.category === cat) && (!onlyLow || isLow(s)) && (!q || `${s.name} ${s.location} ${s.supplier}`.toLowerCase().includes(q.toLowerCase()))
   );
@@ -106,7 +106,12 @@ export default function Stock() {
               </span>
               <span className="row gap-s wrap">
                 {isLow(s) && <Badge tone="ko">Stock bas (mini {fmtNum(s.min, 2)})</Badge>}
-                {s.dlc && <Badge tone={s.dlcType === "DDM" ? "neutral" : dlcTone(s.dlc)}>{s.dlcType || "DLC"} {fmtDate(s.dlc)}{daysUntil(s.dlc) < 0 ? " dépassée" : ""}</Badge>}
+                {s.dlc &&
+                  (isDdm(s) ? (
+                    <Badge tone={daysUntil(s.dlc) < 0 ? "warn" : "neutral"}>DDM {fmtDate(s.dlc)}{daysUntil(s.dlc) < 0 ? " passée (consommable)" : ""}</Badge>
+                  ) : (
+                    <Badge tone={dlcTone(s.dlc)}>DLC {fmtDate(s.dlc)}{daysUntil(s.dlc) < 0 ? " dépassée" : ""}</Badge>
+                  ))}
               </span>
             </span>
             <span className="stock-ctrl" onClick={(e) => e.stopPropagation()}>
@@ -147,7 +152,7 @@ function StockForm({ initial, onClose, onMove }) {
     location: "",
     supplier: "",
     dlc: "",
-    dlcType: "DLC",
+    dlcType: "",
     lot: "",
     photoId: null,
     ...initial,
@@ -166,7 +171,7 @@ function StockForm({ initial, onClose, onMove }) {
       name: s.name || r.product,
       lot: s.lot || r.lot,
       dlc: s.dlc || r.dlc,
-      dlcType: s.dlc ? s.dlcType : r.dlcType || s.dlcType,
+      dlcType: s.dlc ? s.dlcType : r.found?.includes("date (à vérifier)") && isDdm({ name: r.product, category: r.type?.cat }) ? "DDM" : r.dlcType || s.dlcType,
       category: isNew && r.type?.cat ? r.type.cat : s.category,
       unit: isNew && r.quantity ? r.quantity.unit : isNew && r.type?.unit ? r.type.unit : s.unit,
       qty: s.qty || (r.quantity ? String(r.quantity.qty).replace(".", ",") : s.qty),
@@ -183,6 +188,7 @@ function StockForm({ initial, onClose, onMove }) {
     const qty = parseNum(f.qty);
     const min = parseNum(f.min);
     const rec = { ...f, name: f.name.trim(), qty: Number.isFinite(qty) ? qty : 0, min: Number.isFinite(min) ? min : null };
+    if (!rec.dlcType) rec.dlcType = isDdm(rec) ? "DDM" : "DLC";
     const saved = await save("stock", rec);
     const before = isNew ? 0 : initial.qty || 0;
     if (rec.qty !== before) {
@@ -225,7 +231,10 @@ function StockForm({ initial, onClose, onMove }) {
         </div>
       }
     >
-      {!isNew && initial.dlc && daysUntil(initial.dlc) < 0 && (initial.qty || 0) > 0 && (
+      {!isNew && stockDdmPassed({ ...initial, dlcType: f.dlcType }) && (
+        <div className="alert warn">DDM passée ({fmtDate(initial.dlc)}) : le produit reste consommable si l'emballage est intact et l'aspect normal (qualité moindre).</div>
+      )}
+      {!isNew && stockExpired({ ...initial, dlcType: f.dlcType }) && (
         <div className="alert ko col gap-s">
           DLC dépassée ({fmtDate(initial.dlc)}) : produit interdit à l'utilisation.
           <button
@@ -309,7 +318,7 @@ function StockForm({ initial, onClose, onMove }) {
       </div>
       <Chips
         options={[{ value: "DLC", label: "DLC (à consommer jusqu'au)" }, { value: "DDM", label: "DDM (de préférence avant)" }]}
-        value={f.dlcType || "DLC"}
+        value={f.dlcType || (isDdm(f) ? "DDM" : "DLC")}
         onChange={(v) => v && set("dlcType")(v)}
       />
     </Sheet>

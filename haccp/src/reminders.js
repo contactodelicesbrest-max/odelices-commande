@@ -63,6 +63,17 @@ export function buildReminders(data) {
   // 2) Refroidissement / remise en température en cours
   if (r.cooling)
     for (const p of data.process.filter((x) => x.state === "running")) {
+      if (p.auto) {
+        const end = new Date(new Date(p.startAt).getTime() + (p.autoMinutes || 90) * 60000);
+        if (end.getTime() > now)
+          add({
+            title: "❄️ Refroidissement terminé",
+            body: `${p.product} : mets-le au frigo (+3 °C). Le lot est enregistré, à consommer sous 3 jours.`,
+            schedule: { at: end, allowWhileIdle: true },
+            extra: { tab: "trace" },
+          });
+        continue;
+      }
       const max = p.kind === "reheat" ? 60 : 120;
       const when = new Date(new Date(p.startAt).getTime() + (max - 15) * 60000);
       if (when.getTime() > now)

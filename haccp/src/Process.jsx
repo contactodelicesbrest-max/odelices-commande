@@ -56,6 +56,10 @@ export const coldMeats = (settings) =>
     : DEFAULT_COLD_MEATS;
 const isColdMeat = (settings, name) => coldMeats(settings).some((m) => m.toLowerCase() === (name || "").trim().toLowerCase());
 
+// Refroidissement automatique : durée préconisée (cellule / méthode validée), 2 h maximum
+export const coolMinutes = (settings) => Math.min(120, Math.max(30, Number(settings?.coolMinutes) || 90));
+export const autoCoolOn = (settings) => settings?.autoCool !== false;
+
 export const minutesBetween = (a, b) => Math.round((new Date(b) - new Date(a)) / 60000);
 
 export function runningProcesses(list) {
@@ -89,6 +93,7 @@ export default function Process({ intent }) {
         const p = PROCESS[r.kind];
         const elapsed = minutesBetween(r.startAt, new Date());
         const late = elapsed > p.maxMinutes;
+        const endAuto = r.auto ? new Date(new Date(r.startAt).getTime() + r.autoMinutes * 60000) : null;
         return (
           <div key={r.id} className={"card running " + (late ? "late" : "")}>
             <Timer size={22} />
@@ -97,12 +102,13 @@ export default function Process({ intent }) {
                 {p.label} — {r.product}
               </strong>
               <span className="small">
-                Démarré à {fmtTime(r.startAt)} ({fmtNum(r.startTemp)} °C) · {elapsed} min / {p.maxMinutes} min max
+                Démarré à {fmtTime(r.startAt)} ({fmtNum(r.startTemp)} °C) · {elapsed} min
+                {endAuto ? ` — se termine tout seul à ${fmtTime(endAuto)}` : ` / ${p.maxMinutes} min max`}
               </span>
-              {late && <span className="small ko-text">Temps dépassé !</span>}
+              {late && !r.auto && <span className="small ko-text">Temps dépassé !</span>}
             </div>
             <button className="btn btn-sm btn-primary" onClick={() => setForm({ kind: r.kind, initial: r })}>
-              Terminer
+              {r.auto ? "Mesurer" : "Terminer"}
             </button>
           </div>
         );
@@ -123,7 +129,7 @@ export default function Process({ intent }) {
                   </span>
                   {!r.ok && r.action && <span className="small ko-text">↳ {r.action}</span>}
                 </span>
-                <span className={"temp-val " + (r.ok ? "ok" : "ko")}>{fmtNum(r.endTemp)} °C</span>
+                <span className={"temp-val " + (r.ok ? "ok" : "ko")}>{Number.isFinite(r.endTemp) ? `${fmtNum(r.endTemp)} °C` : "auto ✓"}</span>
               </button>
             );
           })}
@@ -258,7 +264,18 @@ function ProcessForm({ kind, initial, onClose }) {
     const saved = await save("process", rec);
     // Cuisson d'une viande conservée au froid -> démarre le refroidissement
     if (kind === "cook" && ok && cold && thenCool) {
-      await save("process", { kind: "cooling", product: rec.product, by: rec.by, state: "running", startAt: at, startTemp: endTemp, at, cookId: saved.id });
+      await save("process", {
+        kind: "cooling",
+        product: rec.product,
+        by: rec.by,
+        state: "running",
+        startAt: at,
+        startTemp: endTemp,
+        at,
+        cookId: saved.id,
+        // Terminé automatiquement après la durée préconisée (pas de température inventée)
+        ...(autoCoolOn(data.settings) ? { auto: true, autoMinutes: coolMinutes(data.settings) } : {}),
+      });
     }
     // Réchauffage de tout le lot -> lot clôturé dans la traçabilité
     if (kind === "reheat" && lot && usedAll) {
@@ -346,7 +363,9 @@ function ProcessForm({ kind, initial, onClose }) {
       {kind === "cook" && cold && (
         <label className="check">
           <input type="checkbox" checked={thenCool} onChange={(e) => setThenCool(e.target.checked)} />
-          Mettre au froid ensuite : démarrer le refroidissement rapide (+10 °C en moins de 2 h)
+          {autoCoolOn(data.settings)
+            ? `Mettre au froid ensuite : refroidissement automatique (${coolMinutes(data.settings)} min), lot J+3 créé tout seul`
+            : "Mettre au froid ensuite : démarrer le refroidissement rapide (+10 °C en moins de 2 h)"}
         </label>
       )}
       {kind === "cooling" && !initial?.traceId && makeLabel && autoReplaceOn(data.settings) && olderLots(data.trace, f.product).length > 0 && (
@@ -384,4 +403,48 @@ function ProcessForm({ kind, initial, onClose }) {
       {!finishing && p.twoStep && <p className="muted small">Astuce : appuie sur « Démarrer » quand tu commences ; l'appli te rappelle de terminer le contrôle.</p>}
     </Sheet>
   );
+}
+
+// Termine les refroidissements automatiques arrivés au bout de leur durée :
+// contrôle enregistré « non mesuré (durée préconisée) » + lot J+3 dans la traçabilité.
+let finishing = false;
+export async function finishAutoCooling(data, save) {
+  if (finishing) return;
+  finishing = true;
+  try {
+    const { replaceOlderLots, autoReplaceOn } = await import("./traceRules.js");
+    const { isPrintAvailable, printLabelsSafe } = await import("./printer.js");
+    let trace = data.trace;
+    for (const r of data.process.filter((x) => x.state === "running" && x.kind === "cooling" && x.auto)) {
+      const end = new Date(new Date(r.startAt).getTime() + (r.autoMinutes || 90) * 60000);
+      if (end.getTime() > Date.now()) continue;
+      const at = end.toISOString();
+      const lot = await save("trace", {
+        kind: "homemade",
+        product: r.product,
+        at,
+        keepDays: 3,
+        dlcAfter: dayKey(addDays(end, 3)),
+        dlcType: "DLC",
+        status: "open",
+        by: r.by || "",
+        comment: `Cuit à ${fmtNum(r.startTemp)} °C puis refroidi automatiquement (${r.autoMinutes || 90} min)`,
+      });
+      await save("process", {
+        ...r,
+        state: "done",
+        at,
+        endTemp: null,
+        minutes: r.autoMinutes || 90,
+        ok: true,
+        traceId: lot.id,
+        comment: [r.comment, "Refroidissement automatique (durée préconisée) — température non mesurée"].filter(Boolean).join(" — "),
+      });
+      if (autoReplaceOn(data.settings)) await replaceOlderLots(save, trace, lot);
+      trace = [...trace, lot];
+      if (isPrintAvailable() && data.settings.printerAddress && data.settings.printerAuto) printLabelsSafe([lot], data.settings);
+    }
+  } finally {
+    finishing = false;
+  }
 }

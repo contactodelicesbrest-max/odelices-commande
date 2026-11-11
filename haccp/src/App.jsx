@@ -7,6 +7,7 @@ import Memo from "./Memo.jsx";
 import Registres from "./Registres.jsx";
 import Allergenes from "./Allergenes.jsx";
 import { askPermission, onReminderTap, scheduleRemindersSoon } from "./reminders.js";
+import { finishAutoCooling } from "./Process.jsx";
 import { onCloudStatus } from "./cloud.js";
 import { DataProvider, useData } from "./store.jsx";
 import Accueil from "./Accueil.jsx";
@@ -78,6 +79,21 @@ function Shell() {
   useEffect(() => {
     scheduleRemindersSoon(data);
   }, [data]);
+  // Refroidissements automatiques : vérifiés à l'ouverture et toutes les minutes
+  const { save } = useData();
+  const dataRef = useRef(data);
+  dataRef.current = data;
+  useEffect(() => {
+    const run = () => finishAutoCooling(dataRef.current, save).catch((e) => console.warn(e));
+    run();
+    const t = setInterval(run, 60000);
+    const onVis = () => document.visibilityState === "visible" && run();
+    document.addEventListener("visibilitychange", onVis);
+    return () => {
+      clearInterval(t);
+      document.removeEventListener("visibilitychange", onVis);
+    };
+  }, [save]);
 
   const go = (t, i = null) => {
     setIntent(i);

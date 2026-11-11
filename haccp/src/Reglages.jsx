@@ -1,6 +1,6 @@
 import { useEffect, useRef, useState } from "react";
 import { onCloudStatus, restoreFromCloud, syncNow } from "./cloud.js";
-import { coldMeats } from "./Process.jsx";
+import { coldMeats, coolMinutes, autoCoolOn } from "./Process.jsx";
 import { RecipesCard } from "./Sauce.jsx";
 import { reminderSettings, testReminder, askPermission } from "./reminders.js";
 import { CHARSETS, charsetOf, isPrintAvailable, listPrinters, printCharsetTest, printTest } from "./printer.js";
@@ -9,7 +9,7 @@ import { useData } from "./store.jsx";
 import { Sheet, Field, Chips } from "./ui.jsx";
 import { EQUIP_TYPES, exportAll, importAll } from "./db.js";
 import { addDays, dayKey, fmtNum, parseNum, saveFile, todayKey } from "./utils.js";
-import { pdfCleaning, pdfOil, pdfProcess, pdfStock, pdfTemperatures, pdfTrace } from "./pdf.js";
+import { pdfCleaning, pdfOil, pdfProcess, pdfTemperatures, pdfTrace } from "./pdf.js";
 
 export default function Reglages({ go }) {
   const { data, save, remove, updateSettings, reload } = useData();
@@ -35,8 +35,8 @@ export default function Reglages({ go }) {
   const report = async (kind) => {
     setBusy(kind);
     try {
-      const fn = { temps: pdfTemperatures, process: pdfProcess, trace: pdfTrace, oil: pdfOil, clean: pdfCleaning, stock: pdfStock }[kind];
-      const name = { temps: "temperatures", process: "cuisson-refroidissement", trace: "tracabilite", oil: "huile", clean: "nettoyage", stock: "stock" }[kind];
+      const fn = { temps: pdfTemperatures, process: pdfProcess, trace: pdfTrace, oil: pdfOil, clean: pdfCleaning }[kind];
+      const name = { temps: "temperatures", process: "cuisson-refroidissement", trace: "tracabilite", oil: "huile", clean: "nettoyage" }[kind];
       const blob = await fn(data, from, to);
       await saveFile(blob, `haccp-${name}-${from}_${to}.pdf`);
     } catch (e) {
@@ -93,6 +93,19 @@ export default function Reglages({ go }) {
         <Field label="Liste (séparée par des virgules)" hint="Ces viandes suivent le circuit : cuisson → refroidissement rapide → frigo (+3 °C, J+3) → remise en température. Le kebab est traité à part (broche).">
           <input className="input" defaultValue={coldMeats(s).join(", ")} onBlur={(e) => updateSettings({ coldMeats: e.target.value })} />
         </Field>
+        <label className="check">
+          <input type="checkbox" checked={autoCoolOn(s)} onChange={(e) => updateSettings({ autoCool: e.target.checked })} />
+          Refroidissement automatique après cuisson (se termine tout seul, lot J+3 créé)
+        </label>
+        {autoCoolOn(s) && (
+          <Field label="Durée du refroidissement" hint="Temps habituel pour passer sous +10 °C avec ta méthode (cellule, bacs peu profonds). Réglementation : moins de 2 h. Vérifie de temps en temps avec le thermomètre (« Mesurer »).">
+            <Chips
+              options={[{ value: 60, label: "1 h" }, { value: 90, label: "1 h 30" }, { value: 120, label: "2 h" }]}
+              value={coolMinutes(s)}
+              onChange={(v) => v && updateSettings({ coolMinutes: v })}
+            />
+          </Field>
+        )}
       </div>
 
       <label className="check">
@@ -186,7 +199,6 @@ export default function Reglages({ go }) {
             ["trace", "Traçabilité (photos)"],
             ["oil", "Huile de friture"],
             ["clean", "Nettoyage"],
-            ["stock", "Stock"],
           ].map(([k, l]) => (
             <button key={k} className="btn btn-ghost" disabled={!!busy} onClick={() => report(k)}>
               <FileDown size={18} /> {busy === k ? "Création…" : l}

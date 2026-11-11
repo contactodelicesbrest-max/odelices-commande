@@ -191,6 +191,16 @@ async function doSeed() {
       await putMany("dishes", DEFAULT_DISHES.map((d, i) => ({ id: uid(), ...d, verified: false, order: i, createdAt: now, updatedAt: now })));
     await put("settings", { id: "seed-dishes", createdAt: now, updatedAt: now });
   }
+  // Correction unique : produits stables enregistrés en « DLC » par défaut -> DDM
+  if (!(await getOne("settings", "fix-ddm"))) {
+    const { isDdm } = await import("./products.js");
+    const now = new Date().toISOString();
+    const st = (await getAll("stock")).filter((x) => x.dlcType !== "DDM" && isDdm({ ...x, dlcType: undefined }));
+    if (st.length) await putMany("stock", st.map((x) => ({ ...x, dlcType: "DDM", updatedAt: now })));
+    const tr = (await getAll("trace")).filter((t) => t.status === "open" && t.kind === "open" && t.dlcType !== "DDM" && isDdm({ name: t.product }));
+    if (tr.length) await putMany("trace", tr.map((t) => ({ ...t, dlcType: "DDM", updatedAt: now })));
+    await put("settings", { id: "fix-ddm", createdAt: now, updatedAt: now });
+  }
   const eq = await getAll("equipments");
   const settings = await getOne("settings", "main");
   if (!settings) {

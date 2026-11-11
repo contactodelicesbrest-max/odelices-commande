@@ -3,7 +3,7 @@ import { ClipboardCheck, Plus, Trash2, CheckCircle2, Search, Printer } from "luc
 import { isPrintAvailable, printLabelsSafe } from "./printer.js";
 import ServicePrint from "./ServicePrint.jsx";
 import LabelPhoto from "./LabelPhoto.jsx";
-import { openingAdvice } from "./products.js";
+import { openingAdvice, isDdm } from "./products.js";
 import SauceForm from "./Sauce.jsx";
 import { useData } from "./store.jsx";
 import { Sheet, Field, Chips, Badge, Empty, PhotoInput, PhotoThumb } from "./ui.jsx";
@@ -205,6 +205,13 @@ function TraceForm({ initial, onClose }) {
   const canPrint = isPrintAvailable() && !!data.settings.printerAddress;
   const [labelText, setLabelText] = useState("");
   const [keepTouched, setKeepTouched] = useState(!isNew);
+  const [typeTouched, setTypeTouched] = useState(!isNew);
+  // DLC ou DDM selon le produit (frites, épicerie, boissons, sauces en bouteille… = DDM), tant que l'utilisateur n'a pas choisi
+  useEffect(() => {
+    if (typeTouched || f.kind === "homemade" || !f.product) return;
+    const t = isDdm({ name: f.product, product: f.product }) ? "DDM" : "DLC";
+    setF((s) => (s.dlcType === t ? s : { ...s, dlcType: t }));
+  }, [f.product, typeTouched]); // eslint-disable-line react-hooks/exhaustive-deps
   const advice = f.kind === "open" && (f.product || labelText) ? openingAdvice(f.product, labelText) : null;
   // Durée conseillée appliquée automatiquement tant que l'utilisateur ne l'a pas changée
   useEffect(() => {
@@ -212,6 +219,8 @@ function TraceForm({ initial, onClose }) {
   }, [advice?.days, keepTouched]); // eslint-disable-line react-hooks/exhaustive-deps
   const onRead = (r) => {
     setLabelText(r.raw || "");
+    // « à consommer jusqu'au » / « de préférence avant » lu sur l'étiquette : c'est sûr
+    if (r.dlc && !r.found?.includes("date (à vérifier)")) setTypeTouched(true);
     setF((s) => ({
       ...s,
       product: s.product || r.product,
@@ -224,6 +233,7 @@ function TraceForm({ initial, onClose }) {
   // Choisir un produit du stock : tout est repris (nom, lot, date, photo, fournisseur)
   const pickStock = (id) => {
     const it = data.stock.find((x) => x.id === id);
+    if (it?.dlcType) setTypeTouched(true);
     setF((s) => ({
       ...s,
       stockId: id,
@@ -232,7 +242,7 @@ function TraceForm({ initial, onClose }) {
             product: it.name,
             lot: it.lot || s.lot,
             dlc: it.dlc || s.dlc,
-            dlcType: it.dlcType || (it.dlc ? "DLC" : s.dlcType),
+            dlcType: it.dlcType || (isDdm(it) ? "DDM" : "DLC"),
             supplier: it.supplier || s.supplier,
             photoId: s.photoId || it.photoId || null,
           }
@@ -392,7 +402,11 @@ function TraceForm({ initial, onClose }) {
           <Chips
             options={[{ value: "DLC", label: "DLC (à consommer jusqu'au)" }, { value: "DDM", label: "DDM (de préférence avant)" }]}
             value={f.dlcType}
-            onChange={(v) => v && set("dlcType")(v)}
+            onChange={(v) => {
+              if (!v) return;
+              setTypeTouched(true);
+              set("dlcType")(v);
+            }}
           />
         </Field>
         <Field label="Quantité">

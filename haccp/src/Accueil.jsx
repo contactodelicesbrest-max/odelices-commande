@@ -1,3 +1,4 @@
+import { stockExpired } from "./products.js";
 import MiseEnPlace from "./MiseEnPlace.jsx";
 import ServicePrint from "./ServicePrint.jsx";
 import { ReceiptText } from "lucide-react";
@@ -36,6 +37,11 @@ export default function Accueil({ go }) {
     (r.late ? alerts : tasks).push({ tab: "temps", icon: Thermometer, text: `Recontrôler ${r.eq.name} (${fmtNum(r.last.value)} °C à ${new Date(r.last.at).toLocaleTimeString("fr-FR", { hour: "2-digit", minute: "2-digit" })})${r.late ? " — en retard" : ""}` });
   for (const p of data.process.filter((x) => x.state === "running")) {
     const def = PROCESS[p.kind];
+    if (p.auto) {
+      const end = new Date(new Date(p.startAt).getTime() + (p.autoMinutes || 90) * 60000);
+      tasks.push({ tab: "temps", icon: Timer, text: `${p.product} au refroidissement — se termine tout seul à ${end.toLocaleTimeString("fr-FR", { hour: "2-digit", minute: "2-digit" })}` });
+      continue;
+    }
     const late = minutesBetween(p.startAt, new Date()) > def.maxMinutes;
     (late ? alerts : tasks).push({ tab: "temps", icon: Timer, text: `${def.label} en cours : ${p.product}${late ? " — temps dépassé !" : " — à terminer"}` });
   }
@@ -62,7 +68,7 @@ export default function Accueil({ go }) {
 
   const low = data.stock.filter(isLow);
   if (low.length) tasks.push({ tab: "stock", icon: Package, text: `${low.length} produit(s) en stock bas : ${low.map((s) => s.name).slice(0, 5).join(", ")}${low.length > 5 ? "…" : ""}` });
-  for (const s of data.stock) if (s.dlc && (s.qty || 0) > 0 && daysUntil(s.dlc) < 0) alerts.push({ tab: "stock", icon: Package, text: `Stock : ${s.name} — DLC dépassée (${fmtDate(s.dlc)})` });
+  for (const s of data.stock.filter(stockExpired)) alerts.push({ tab: "stock", icon: Package, text: `Stock : ${s.name} — DLC dépassée (${fmtDate(s.dlc)})` });
 
   if (cloud && (cloud.state === "error" || (cloud.lastOk ? daysSince(cloud.lastOk) >= 2 : data.temps.length + data.trace.length > 10)))
     (cloud.state === "error" ? alerts : tasks).push({
