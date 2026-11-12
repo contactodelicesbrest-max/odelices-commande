@@ -1,75 +1,87 @@
-# O'Délices — Appli de commande (tablette client + tablette cuisine)
+# O'Délices — Borne de commande (APK Android)
 
-Ce projet contient l'appli complète :
-- **Tablette client** (`?vue=client`) : le client compose sa commande, paiement au comptoir.
-- **Tablette cuisine** (`?vue=cuisine`) : suivi des commandes en direct, avec statuts.
+Une seule application pour la tablette du restaurant :
 
-Les deux tablettes se synchronisent via une base de données en ligne (Firebase), gratuite.
+- **Borne client** : le client choisit *Sur place* ou *À emporter*, compose sa commande (formats, viandes, sauces, suppléments, « sans oignons »…), valide, puis reçoit un **numéro de commande**. Il paie au comptoir.
+- **Impression automatique en cuisine** : chaque commande validée sort sur l'imprimante thermique de la cuisine (Bluetooth ou Wi-Fi/Ethernet). Un ticket client avec les prix et la TVA peut aussi être imprimé.
+- **Espace gérant** (protégé par un code PIN) : gestion complète du menu, des ruptures de stock, des imprimantes, et suivi du chiffre du jour.
 
----
-
-## Étape 1 — Créer la base de données (Firebase)
-
-1. Va sur **console.firebase.google.com**, connecte-toi avec ton compte Google.
-2. Clique **"Ajouter un projet"**, donne-lui un nom (ex : `odelices-brest`), continue jusqu'au bout (tu peux désactiver Google Analytics, pas nécessaire).
-3. Une fois dans le projet, dans le menu de gauche : **Compilation → Realtime Database** → **"Créer une base de données"**.
-   - Choisis une région proche (ex : `europe-west1`).
-   - Choisis **"Démarrer en mode test"** (ça suffit pour ce projet, ça donne un accès simple pendant 30 jours — on pourra resserrer les règles plus tard si besoin).
-4. Toujours dans la console, clique sur l'icône **⚙️ (Paramètres du projet)** en haut à gauche → **Paramètres du projet**.
-5. Tout en bas de la page, section **"Vos applications"** → clique sur l'icône **`</>`** (Web) → donne un nom (ex : `odelices-web`) → **"Enregistrer l'application"**.
-6. Un bloc de code `firebaseConfig` apparaît avec des valeurs (`apiKey`, `authDomain`, etc.). **Copie tout ce bloc.**
-7. Ouvre le fichier `src/firebaseConfig.js` dans ce projet, et remplace le contenu par ce que tu viens de copier (adapte juste les noms de variables si besoin — la structure est la même).
+L'application fonctionne **sans internet** : le menu et les commandes sont enregistrés sur la tablette.
 
 ---
 
-## Étape 2 — Mettre le projet sur GitHub
+## Installer l'APK sur la tablette
 
-1. Va sur **github.com**, connecte-toi (ou crée un compte avec ton Gmail).
-2. Clique **"New repository"**, nomme-le `odelices-commande`, laisse le reste par défaut, clique **"Create repository"**.
-3. Sur la page qui s'affiche, clique **"uploading an existing file"** (ou glisse-dépose).
-4. Glisse **tous les fichiers et dossiers de ce projet** dans la zone (sauf le dossier `node_modules` s'il existe — il ne devrait pas être présent).
-5. Clique **"Commit changes"**.
+1. Copiez le fichier `ODelices-Borne-v2.0.0.apk` sur la tablette (câble USB, Google Drive, e-mail…).
+2. Ouvrez-le depuis la tablette. Si Android le demande, autorisez « Installer des applications inconnues » pour l'application qui ouvre le fichier (Fichiers, Drive…).
+3. Lancez **O'Délices Borne**.
+
+## Ouvrir l'espace gérant
+
+- Faites un **appui long de 2 secondes sur le logo** (écran d'accueil ou en haut du menu).
+- Tapez le code PIN. **Code par défaut : `1234`**. Changez-le tout de suite dans *Réglages → Sécurité*.
+
+## Configurer l'imprimante cuisine
+
+*Espace gérant → Imprimantes → Imprimante cuisine* :
+
+- **Bluetooth** : allumez l'imprimante et appairez-la dans *Paramètres Android → Bluetooth* (le code est souvent `0000` ou `1234`). Revenez dans l'appli, touchez « Rechercher », puis choisissez l'imprimante.
+- **Wi-Fi / Ethernet** : saisissez l'adresse IP de l'imprimante (port 9100 par défaut). Pour connaître l'IP, imprimez la page de configuration de l'imprimante (en général, maintenez le bouton FEED appuyé à l'allumage).
+- Choisissez la largeur de papier (58 mm ou 80 mm), puis touchez **« Imprimer un test »**.
+- Si les accents s'impriment mal, désactivez « Imprimer les accents ».
+
+Vous pouvez aussi ajouter une **imprimante caisse** (facultative) pour imprimer le ticket client au comptoir.
+
+Compatible avec la grande majorité des imprimantes thermiques ESC/POS (Epson, Xprinter, Goojprt, Munbyn, Netum, etc.).
+
+## Gérer le menu
+
+- **Menu** : créez, modifiez, réordonnez ou masquez des catégories et des produits. Pour chaque produit, vous pouvez régler :
+  - la photo, la description et la TVA (5,5 / 10 / 20 %) ;
+  - le prix unique ou les formats (M / L / XL, avec ou sans boisson…) ;
+  - les ingrédients que le client peut retirer ;
+  - les choix proposés : viandes, sauces, suppléments, boisson… avec un minimum et un maximum, le nombre de choix offerts, le surcoût au-delà, et des règles par format (par exemple : 1 viande en M, 2 en L, 3 en XL ; boisson seulement « avec boisson »).
+- Un interrupteur **En stock / Épuisé** sur chaque produit. Le produit apparaît alors grisé sur la borne.
+- L'étoile ⭐ marque un produit comme **populaire** : il s'affiche dans l'onglet « Populaires » de la borne.
+- **Options** : les listes partagées (sauces, viandes, suppléments, boissons…). Ajouter une sauce ici la rend disponible dans tous les produits qui utilisent cette liste. Chaque option peut aussi être mise en rupture (ex. : plus de Tenders).
+
+## Commandes et chiffre du jour
+
+*Espace gérant → Commandes* :
+
+- chiffre d'affaires, nombre de commandes, panier moyen et meilleures ventes ;
+- historique jour par jour, conservé 120 jours ;
+- réimpression du ticket cuisine ou client ; commande marquée payée (espèces/carte) ou annulée ;
+- rapport du jour imprimé, ou export **PDF** / **Excel (CSV)** à envoyer par e-mail ou sur Drive.
+
+## Mode borne verrouillé
+
+*Réglages → Sécurité → Mode borne verrouillé* : l'application est épinglée et les clients ne peuvent plus en sortir. Le bouton « retour » d'Android est déjà désactivé dans l'appli, et l'écran reste toujours allumé.
+
+## Sauvegarde
+
+*Réglages → Sauvegarde du menu* : exportez le menu et les réglages dans un fichier, pour les restaurer ou les copier sur une autre tablette.
 
 ---
 
-## Étape 3 — Déployer sur Vercel
+## Pour les développeurs
 
-1. Va sur **vercel.com**, connecte-toi avec ton compte Google (celui déjà utilisé).
-2. Clique **"Add New..." → "Project"**.
-3. Choisis le dépôt GitHub `odelices-commande` → **"Import"**.
-4. Vercel détecte automatiquement que c'est un projet Vite — laisse les réglages par défaut → clique **"Deploy"**.
-5. Après 1-2 minutes, tu obtiens une adresse du type `https://odelices-commande.vercel.app`. C'est ton site en ligne !
-
----
-
-## Étape 4 — Installer sur les tablettes
-
-**Tablette client (comptoir) :**
-1. Ouvre Chrome sur la tablette.
-2. Va sur `https://odelices-commande.vercel.app?vue=client`
-3. Menu ⋮ (en haut à droite) → **"Ajouter à l'écran d'accueil"**.
-4. Une icône apparaît sur la tablette — en l'ouvrant, l'appli se lance en plein écran, comme une vraie appli installée.
-
-**Tablette cuisine :**
-1. Même chose avec l'adresse `https://odelices-commande.vercel.app?vue=cuisine`
-
----
-
-## Pour aller plus loin
-
-- **Verrouiller la tablette client en libre-service** (empêcher de quitter l'appli ou d'accéder aux réglages Android) : l'appli gratuite **Fully Kiosk Browser** (sur le Play Store) permet de transformer la tablette en vraie borne figée sur une seule adresse.
-- **Générer un .apk** à partir du site en ligne : le site **pwabuilder.com** permet de générer un fichier `.apk` installable directement à partir de l'adresse Vercel, sans avoir besoin d'Android Studio.
-- **Modifier la carte, les prix ou les personnalisations** : tout se trouve dans `src/App.jsx`, dans le tableau `MENU` en haut du fichier.
-
----
-
-## Développement local (optionnel)
-
-Si tu veux tester le site sur ton ordinateur avant de le déployer :
+- React + Vite, empaqueté pour Android avec Capacitor 7.
+- Code natif (impression ESC/POS en Bluetooth SPP et TCP 9100, mode borne) : `android/app/src/main/java/fr/odelices/borne/`.
+- Menu par défaut : `src/lib/defaultData.js`.
 
 ```bash
 npm install
-npm run dev
+npm run dev                 # aperçu dans le navigateur (sans impression)
+npm run build && npx cap sync android
+cd android && ./gradlew assembleRelease
 ```
 
-Puis ouvre l'adresse affichée dans le terminal (généralement `http://localhost:5173`).
+**Signature de l'APK** : placez `odelices-release.keystore` et `keystore.properties` dans `android/`. Ces fichiers ne sont **jamais publiés sur GitHub**. Gardez toujours la même clé : sans elle, Android refuse d'installer les mises à jour par-dessus l'ancienne version. Sans ces fichiers, l'APK est signé avec une clé de débogage.
+
+```properties
+storeFile=odelices-release.keystore
+storePassword=...
+keyAlias=odelices
+keyPassword=...
+```

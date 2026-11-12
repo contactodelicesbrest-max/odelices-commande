@@ -1,3 +1,9 @@
 node_modules
 dist
 .DS_Store
+
+# Clé de signature Android (ne jamais publier)
+*.keystore
+*.jks
+android/keystore.properties
+*.apk

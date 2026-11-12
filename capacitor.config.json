@@ -1,0 +1,10 @@
+{
+  "appId": "fr.odelices.borne",
+  "appName": "O'Délices Borne",
+  "webDir": "dist",
+  "android": {
+    "allowMixedContent": false,
+    "captureInput": true,
+    "webContentsDebuggingEnabled": false
+  }
+}
