@@ -3,7 +3,7 @@ import { ClipboardCheck, Plus, Trash2, CheckCircle2, Search, Printer } from "luc
 import { isPrintAvailable, printLabelsSafe } from "./printer.js";
 import ServicePrint from "./ServicePrint.jsx";
 import LabelPhoto from "./LabelPhoto.jsx";
-import { openingAdvice, isDdm } from "./products.js";
+import { openingAdvice, isDdm, daysAfterThawFromLabel } from "./products.js";
 import SauceForm from "./Sauce.jsx";
 import { useData } from "./store.jsx";
 import { Sheet, Field, Chips, Badge, Empty, PhotoInput, PhotoThumb } from "./ui.jsx";
@@ -217,6 +217,10 @@ function TraceForm({ initial, onClose }) {
   useEffect(() => {
     if (!keepTouched && advice) setF((s) => (s.keepDays === (advice.days || "") ? s : { ...s, keepDays: advice.days || "" }));
   }, [advice?.days, keepTouched]); // eslint-disable-line react-hooks/exhaustive-deps
+  const thawInfo = f.kind === "thawed" ? daysAfterThawFromLabel(labelText) : null;
+  useEffect(() => {
+    if (thawInfo && !keepTouched) setF((s) => ({ ...s, keepDays: thawInfo.days }));
+  }, [thawInfo?.days]); // eslint-disable-line react-hooks/exhaustive-deps
   const onRead = (r) => {
     setLabelText(r.raw || "");
     // « à consommer jusqu'au » / « de préférence avant » lu sur l'étiquette : c'est sûr
@@ -452,6 +456,7 @@ function TraceForm({ initial, onClose }) {
           }}
         />
       </Field>
+      {thawInfo && <div className="alert info">💡 L'étiquette indique : <strong>{thawInfo.text}</strong> — durée réglée automatiquement.</div>}
       {advice && (
         <div className="alert info">
           💡 <strong>Conseil{advice.type ? ` (${advice.type.label})` : ""} :</strong>{" "}

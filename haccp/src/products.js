@@ -140,3 +140,13 @@ function daysBefore(d) {
   const b = new Date(String(d).slice(0, 10) + "T00:00:00");
   return Math.round((b - a) / 86400000);
 }
+
+// Durée « après décongélation » écrite sur l'étiquette (ex : « à consommer dans les 3 jours après décongélation »)
+export function daysAfterThawFromLabel(text) {
+  const s = norm(text).replace(/\s+/g, " ");
+  const m = s.match(/(\d{1,2})\s*(jours?|j\b|heures?|h\b)\s*(apres|suivant)\s*(la\s*)?decongel/) || s.match(/decongel\w*\s*[:,]?\s*(?:a consommer\s*)?(?:dans|sous)\s*(?:les\s*)?(\d{1,2})\s*(jours?|heures?|h\b)/);
+  if (!m) return null;
+  const n = Number(m[1]);
+  const u = m[2];
+  return { days: /^h/.test(u) ? Math.max(1, Math.round(n / 24)) : n, text: `${n} ${u} après décongélation` };
+}
