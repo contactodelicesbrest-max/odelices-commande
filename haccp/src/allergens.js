@@ -28,8 +28,9 @@ const norm = (s) =>
 // Allergènes repérés dans le texte d'une étiquette (liste d'ingrédients).
 // « peut contenir / traces de » est séparé : ce sont des traces possibles.
 export function allergensFromText(text) {
-  const t = norm(text);
-  if (!t) return { contains: [], traces: [] };
+  // Faux amis : ne sont PAS des allergènes réglementaires
+  const t = norm(text).replace(/laitue|noix de (coco|muscade)|beurre de cacao|lait de coco|creme de coco|creme de (vinaigre|balsamique)/g, " ");
+  if (!t.trim()) return { contains: [], traces: [] };
   const m = t.match(/(peut contenir|traces? (eventuelles? )?de|fabrique dans un atelier)(.{0,160})/);
   const tracesPart = m ? m[3] : "";
   const main = m ? t.replace(m[0], " ") : t;

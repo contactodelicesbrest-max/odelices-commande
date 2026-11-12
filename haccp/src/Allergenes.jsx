@@ -2,7 +2,9 @@ import { useMemo, useState } from "react";
 import { CheckCircle2, FileDown, Plus, Trash2, Monitor } from "lucide-react";
 import { useData } from "./store.jsx";
 import { Sheet, Field, Badge } from "./ui.jsx";
-import { ALLERGENS, allergenById, DISH_GROUPS } from "./allergens.js";
+import { ALLERGENS, allergenById, DISH_GROUPS, allergensFromText } from "./allergens.js";
+import LabelPhoto from "./LabelPhoto.jsx";
+import { PhotoThumb } from "./ui.jsx";
 import { saveFile, todayKey } from "./utils.js";
 import { pdfAllergens } from "./pdf.js";
 
@@ -87,7 +89,19 @@ export default function Allergenes() {
 
 function DishForm({ initial, onClose }) {
   const { save, remove } = useData();
-  const [f, setF] = useState({ name: "", group: "Autre", allergens: [], traces: [], verified: false, ...initial });
+  const [f, setF] = useState({ name: "", group: "Autre", allergens: [], traces: [], verified: false, photoIds: [], ...initial });
+  const [photoId, setPhotoId] = useState(null);
+  const [found, setFound] = useState(null);
+  // Photo de la liste d'ingrédients : les allergènes trouvés sont ajoutés (on n'enlève rien)
+  const onRead = (r) => {
+    const al = allergensFromText(r.raw || "");
+    setFound(al);
+    setF((s) => ({
+      ...s,
+      allergens: [...new Set([...(s.allergens || []), ...al.contains])],
+      traces: [...new Set([...(s.traces || []), ...al.traces])].filter((x) => !al.contains.includes(x)),
+    }));
+  };
   const toggle = (field, id) =>
     setF((s) => {
       const set = new Set(s[field] || []);
@@ -96,7 +110,7 @@ function DishForm({ initial, onClose }) {
     });
   const submit = async () => {
     if (!f.name.trim()) return alert("Donne un nom.");
-    await save("dishes", { ...f, name: f.name.trim(), verified: true });
+    await save("dishes", { ...f, name: f.name.trim(), verified: true, photoIds: [...(f.photoIds || []), ...(photoId ? [photoId] : [])] });
     onClose();
   };
   return (
@@ -126,6 +140,34 @@ function DishForm({ initial, onClose }) {
           </select>
         </Field>
       </div>
+      <LabelPhoto
+        photoId={photoId}
+        onChange={(id) => {
+          setPhotoId(id);
+          if (!id) setFound(null);
+        }}
+        onRead={onRead}
+        label="📷 Photo de la liste des ingrédients (sur l'emballage)"
+      />
+      {found && (
+        <div className={"alert " + (found.contains.length || found.traces.length ? "ok" : "warn")}>
+          {found.contains.length || found.traces.length ? (
+            <>
+              Repéré sur l'étiquette : <strong>{found.contains.map((a) => allergenById[a].label).join(", ") || "aucun allergène"}</strong>
+              {found.traces.length > 0 && <> · traces : {found.traces.map((a) => allergenById[a].label).join(", ")}</>}. Cases cochées ci-dessous : vérifie avec l'étiquette.
+            </>
+          ) : (
+            "Aucun allergène repéré. Vérifie que la photo montre bien la liste des ingrédients (nette, de près), sinon coche à la main."
+          )}
+        </div>
+      )}
+      {photoId && <p className="muted small">Plusieurs produits dans cet élément (ex : sauce + pain) ? Enregistre, puis rouvre l'élément pour ajouter la photo suivante : les allergènes s'additionnent.</p>}
+      {(f.photoIds || []).length > 0 && (
+        <div className="row gap-s wrap">
+          <span className="muted small">Étiquettes enregistrées :</span>
+          {f.photoIds.map((id) => <PhotoThumb key={id} id={id} />)}
+        </div>
+      )}
       <span className="field-label">Contient</span>
       <div className="allergen-grid">
         {ALLERGENS.map((a) => (
