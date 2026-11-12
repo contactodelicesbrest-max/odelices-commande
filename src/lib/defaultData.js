@@ -85,8 +85,8 @@ const sz = (label, price) => ({ id: slug(label), label, price });
 
 const CATEGORIES = [
   { id: "tacos", icon: "🌮", name: "Tacos", note: "Tous nos tacos sont composés de frites et de sauce fromagère." },
-  { id: "burgers", icon: "🍔", name: "Burgers", note: "Servis avec frites. 1ère sauce incluse, 2e à 0,50 €." },
   { id: "sandwichs", icon: "🥙", name: "Sandwichs & Assiettes", note: "1ère sauce incluse, 2e à 0,50 €." },
+  { id: "burgers", icon: "🍔", name: "Burgers", note: "Servis avec frites. 1ère sauce incluse, 2e à 0,50 €." },
   { id: "enfant", icon: "🧒", name: "Menu Enfant", note: "2 sauces au choix incluses." },
   { id: "petite-faim", icon: "🍟", name: "Petite faim", note: "Sauces au choix incluses, sans supplément." },
   { id: "boissons", icon: "🥤", name: "Boissons", note: "" },
@@ -110,6 +110,33 @@ const P = (categoryId, name, fields = {}) => ({
   popular: false,
   ...fields,
 });
+
+// Produits ajoutés dans l'appli Comptoir (absents de l'ancien GitHub)
+const ROSTIBURGER = () =>
+  P("burgers", "Rostiburger", {
+    description: "Servi avec frites, salade, tomates, oignons.",
+    price: 11.5,
+    ingredients: ["Salade", "Tomates", "Oignons"],
+    links: [SAUCE_1_OFFERTE(), SUPPS(), BOISSON_OPT(1.5)],
+  });
+const PIZZA_TURC = () =>
+  P("sandwichs", "Pizza Turc", {
+    description: "Base galette, salade, tomates, oignons. Viande supplémentaire : +3,00 €.",
+    price: 9.5,
+    ingredients: ["Salade", "Tomates", "Oignons"],
+    links: [MEAT_SUPP(), SAUCE_1_OFFERTE(), SUPPS(), BOISSON_OPT(1.5)],
+  });
+const MOZZA_STICKS = () =>
+  P("petite-faim", "Mozzarella sticks", {
+    id: "pf-mozza",
+    sizes: [sz("4 pièces", 3.9), sz("5 pièces", 4.9), sz("8 pièces", 7.9), sz("10 pièces", 9.9)],
+    links: [SAUCES_GRATUITES()],
+  });
+const ADDED = [
+  { make: ROSTIBURGER, after: "odelices-burger" },
+  { make: PIZZA_TURC, after: "doner" },
+  { make: MOZZA_STICKS, after: "pf-nuggets" },
+];
 
 const PRODUCTS = [
   P("tacos", "Tacos", {
@@ -149,6 +176,7 @@ const PRODUCTS = [
     ingredients: ["Salade", "Tomates", "Oignons", "Cheddar"],
     links: [SAUCE_1_OFFERTE(), SUPPS(), BOISSON_OPT(1.5)],
   }),
+  ROSTIBURGER(),
 
   P("sandwichs", "Döner Kebab", {
     id: "doner",
@@ -158,6 +186,7 @@ const PRODUCTS = [
     ingredients: ["Salade", "Tomates", "Oignons"],
     links: [MEAT_SUPP(), PAIN(), SAUCE_1_OFFERTE(), SUPPS(), BOISSON_OPT(1.5)],
   }),
+  PIZZA_TURC(),
   P("sandwichs", "Menu Falafel", {
     description: "Falafels, salade, tomates, oignons.",
     price: 9,
@@ -180,7 +209,7 @@ const PRODUCTS = [
     id: "assiette",
     description: "Kebab, nuggets, poulet, steak, tenders, cordon bleu ou falafels. Viande supplémentaire : +3,00 €.",
     price: 13.5,
-    links: [MEAT_1("viandes-assiette"), MEAT_SUPP("viandes-assiette"), PAIN(), SAUCE_1_OFFERTE(), SUPPS(), BOISSON_OPT(2)],
+    links: [MEAT_1("viandes-assiette"), MEAT_SUPP("viandes-assiette"), PAIN(), SAUCE_1_OFFERTE(), SUPPS(), BOISSON_OPT(1.5)],
   }),
   P("sandwichs", "Formule Nuggets", {
     description: "6 nuggets et frites.",
@@ -204,6 +233,7 @@ const PRODUCTS = [
   P("petite-faim", "Viande kebab", { id: "pf-viande", sizes: [sz("Petite portion", 8), sz("Grande portion", 10)], links: [SAUCES_GRATUITES()] }),
   P("petite-faim", "Tenders", { id: "pf-tenders", sizes: [sz("2 pièces", 4), sz("4 pièces", 6)], links: [SAUCES_GRATUITES()] }),
   P("petite-faim", "Nuggets", { id: "pf-nuggets", sizes: [sz("4 pièces", 4), sz("6 pièces", 5.5)], links: [SAUCES_GRATUITES()] }),
+  MOZZA_STICKS(),
 
   P("boissons", "Coca-Cola", { sizes: [sz("33cl", 2), sz("Bouteille", 4.5)] }),
   ...["Ice Tea", "Sprite", "Perrier", "Red Bull", "Ayran", "Oasis", "Fanta"].map((n) => P("boissons", n, { price: 2, description: "33cl" })),
@@ -238,8 +268,8 @@ export const DEFAULT_SETTINGS = {
   hideUnavailable: false,
   showPrices: true,
   printers: {
-    kitchen: { type: "none", name: "", address: "", host: "", port: 9100, width: 32, copies: 1, accents: false, cut: true },
-    counter: { enabled: false, type: "none", name: "", address: "", host: "", port: 9100, width: 32, copies: 1, accents: false, cut: true, vat: true },
+    kitchen: { type: "bluetooth", name: "", address: "", host: "", port: 9100, width: 48, copies: 1, accents: false, cut: true },
+    counter: { enabled: false, type: "bluetooth", name: "", address: "", host: "", port: 9100, width: 48, copies: 1, accents: false, cut: true, vat: true },
   },
   // Si pas d'imprimante caisse : imprimer aussi un ticket client (avec prix) sur l'imprimante cuisine
   clientTicketOnKitchen: true,
@@ -264,6 +294,25 @@ export function migrateMenu(menu) {
   return menu;
 }
 
+// Version 2 → 3 : prix et produits de l'appli Comptoir
+export function migrateMenuV3(menu) {
+  const assiette = menu.products.find((p) => p.id === "assiette");
+  const drink = assiette?.links.find((l) => l.groupId === "boissons");
+  if (drink && Number(drink.extraPrice) === 2) drink.extraPrice = 1.5;
+  for (const { make, after } of ADDED) {
+    const p = make();
+    if (menu.products.some((x) => x.id === p.id || x.name.toLowerCase() === p.name.toLowerCase())) continue;
+    if (!menu.categories.some((c) => c.id === p.categoryId)) continue;
+    const i = menu.products.findIndex((x) => x.id === after);
+    menu.products.splice(i >= 0 ? i + 1 : menu.products.length, 0, p);
+  }
+  // ordre Tacos, Sandwichs, Burgers (seulement si l'ordre d'origine n'a pas été modifié)
+  const ids = menu.categories.map((c) => c.id);
+  const bi = ids.indexOf("burgers"), si = ids.indexOf("sandwichs");
+  if (bi === 1 && si === 2) [menu.categories[1], menu.categories[2]] = [menu.categories[2], menu.categories[1]];
+  return menu;
+}
+
 export function defaultMenu() {
   return {
     categories: CATEGORIES.map((c) => ({ ...c, hidden: false })),
@@ -275,7 +324,7 @@ export function defaultMenu() {
 export function defaultData() {
   return {
     version: 1,
-    menuVersion: 2,
+    menuVersion: 3,
     menu: defaultMenu(),
     settings: JSON.parse(JSON.stringify(DEFAULT_SETTINGS)),
     counter: { day: "", n: 0 },

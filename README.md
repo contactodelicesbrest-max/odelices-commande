@@ -12,7 +12,7 @@ L'application fonctionne **sans internet** : le menu et les commandes sont enreg
 
 ## Installer l'APK sur la tablette
 
-1. Copiez le fichier `ODelices-Borne-v2.0.1.apk` sur la tablette (câble USB, Google Drive, e-mail…).
+1. Copiez le fichier `ODelices-Borne-v2.0.2.apk` sur la tablette (câble USB, Google Drive, e-mail…).
 2. Ouvrez-le depuis la tablette. Si Android le demande, autorisez « Installer des applications inconnues » pour l'application qui ouvre le fichier (Fichiers, Drive…).
 3. Lancez **O'Délices Borne**.
 
@@ -25,7 +25,7 @@ L'application fonctionne **sans internet** : le menu et les commandes sont enreg
 
 *Espace gérant → Imprimantes → Imprimante cuisine* :
 
-- **Bluetooth** : allumez l'imprimante et appairez-la dans *Paramètres Android → Bluetooth* (le code est souvent `0000` ou `1234`). Revenez dans l'appli, touchez « Rechercher », puis choisissez l'imprimante.
+- **Bluetooth** (réglage par défaut, prévu pour la **Sunmi NT311** en 80 mm) : allumez l'imprimante et appairez-la dans *Paramètres Android → Bluetooth* (le code est souvent `0000` ou `1234`). Revenez dans l'appli, touchez « Rechercher », puis choisissez l'imprimante.
 - **Wi-Fi / Ethernet** : saisissez l'adresse IP de l'imprimante (port 9100 par défaut). Pour connaître l'IP, imprimez la page de configuration de l'imprimante (en général, maintenez le bouton FEED appuyé à l'allumage).
 - Choisissez la largeur de papier (58 mm ou 80 mm), puis touchez **« Imprimer un test »**.
 - Si les accents s'impriment mal, désactivez « Imprimer les accents ».
