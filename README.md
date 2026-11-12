@@ -12,7 +12,7 @@ L'application fonctionne **sans internet** : le menu et les commandes sont enreg
 
 ## Installer l'APK sur la tablette
 
-1. Copiez le fichier `ODelices-Borne-v2.0.0.apk` sur la tablette (câble USB, Google Drive, e-mail…).
+1. Copiez le fichier `ODelices-Borne-v2.0.1.apk` sur la tablette (câble USB, Google Drive, e-mail…).
 2. Ouvrez-le depuis la tablette. Si Android le demande, autorisez « Installer des applications inconnues » pour l'application qui ouvre le fichier (Fichiers, Drive…).
 3. Lancez **O'Délices Borne**.
 

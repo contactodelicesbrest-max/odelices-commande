@@ -12,7 +12,7 @@ function hint(link, limits) {
   if (max > 0 && min !== max) parts.push(`${max} max`);
   const extra = Number(link.extraPrice) || 0;
   const free = Number(link.free) || 0;
-  if (extra > 0) parts.push(free > 0 ? `${free} offerte${free > 1 ? "s" : ""}, puis +${money(extra)}` : `+${money(extra)} chacun`);
+  if (extra > 0) parts.push(free > 0 ? `${free} offerte${free > 1 ? "s" : ""}, puis +${money(extra)}` : max === 1 ? `+${money(extra)}` : `+${money(extra)} chacun`);
   return parts.join(" · ");
 }
 
@@ -155,6 +155,15 @@ export default function ProductSheet({ icon, product, groupsById, initial, onClo
             const missing = count < limits.min;
             const options = group.options.filter((o) => o.available !== false || picked[o.id]);
             const allOptions = group.options;
+            // Prix réellement ajouté au total si le client choisit cette option (option + surcoût éventuel)
+            const extra = Number(link.extraPrice) || 0;
+            const free = Number(link.free) || 0;
+            const radio = !link.repeat && limits.max === 1;
+            const addPrice = (o) => {
+              const q = picked[o.id] || 0;
+              const before = radio ? 0 : link.repeat ? count : count - (q ? 1 : 0);
+              return (Number(o.price) || 0) + (before >= free ? extra : 0);
+            };
             return (
               <section
                 key={link.id}
@@ -179,7 +188,7 @@ export default function ProductSheet({ icon, product, groupsById, initial, onClo
                         <div key={o.id} className={`stepper-row ${q ? "on" : ""} ${out ? "out" : ""}`}>
                           <span className="stepper-name">
                             {o.name}
-                            {o.price > 0 && <em> +{money(o.price)}</em>}
+                            {addPrice(o) > 0 && <em> +{money(addPrice(o))}</em>}
                             {out && <em className="out-tag"> Épuisé</em>}
                           </span>
                           <div className="qty">
@@ -203,7 +212,7 @@ export default function ProductSheet({ icon, product, groupsById, initial, onClo
                       return (
                         <button key={o.id} className={`chip ${on ? "chip-sel" : ""} ${out ? "chip-out" : ""}`} disabled={out && !on} onClick={() => change(link, o.id, 1)}>
                           {on && <Check size={16} />} {o.name}
-                          {o.price > 0 && <em> +{money(o.price)}</em>}
+                          {addPrice(o) > 0 && <em> +{money(addPrice(o))}</em>}
                           {out && <em> · épuisé</em>}
                         </button>
                       );

@@ -3,7 +3,7 @@
 import { Capacitor } from "@capacitor/core";
 import { Preferences } from "@capacitor/preferences";
 import { createContext, useCallback, useContext, useEffect, useRef, useState } from "react";
-import { defaultData, DEFAULT_SETTINGS } from "./defaultData.js";
+import { defaultData, DEFAULT_SETTINGS, migrateMenu } from "./defaultData.js";
 
 const DATA_KEY = "odelices.data.v1";
 const ORDERS_KEY = "odelices.orders.v1";
@@ -56,8 +56,13 @@ export function StoreProvider({ children }) {
       if (raw) {
         try {
           const parsed = JSON.parse(raw);
-          d = { ...d, ...parsed, settings: mergeDefaults(DEFAULT_SETTINGS, parsed.settings) };
+          d = { ...d, ...parsed, menuVersion: parsed.menuVersion || 1, settings: mergeDefaults(DEFAULT_SETTINGS, parsed.settings) };
         } catch {}
+        if (d.menuVersion < 2) {
+          migrateMenu(d.menu);
+          d.menuVersion = 2;
+          writeKey(DATA_KEY, JSON.stringify(d));
+        }
       }
       const rawOrders = await readKey(ORDERS_KEY);
       let o = [];
@@ -93,7 +98,8 @@ export function StoreProvider({ children }) {
 
   const replaceAll = useCallback(
     (d) => {
-      const merged = { ...defaultData(), ...d, settings: mergeDefaults(DEFAULT_SETTINGS, d.settings) };
+      const merged = { ...defaultData(), ...d, menuVersion: 2, settings: mergeDefaults(DEFAULT_SETTINGS, d.settings) };
+      if ((d.menuVersion || 1) < 2) migrateMenu(merged.menu);
       latest.current = merged;
       setData(merged);
       writeKey(DATA_KEY, JSON.stringify(merged));

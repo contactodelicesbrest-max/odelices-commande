@@ -77,13 +77,10 @@ const SAUCE_1_OFFERTE = () => link("sauces", { label: "Sauces", free: 1, extraPr
 const SAUCES_GRATUITES = () => link("sauces", { label: "Sauces (gratuites)" });
 const SUPPS = () => link("supplements", { label: "Suppléments", repeat: true });
 const PAIN = () => link("pain", { label: "Pain ou galette", min: 1, max: 1 });
-const BOISSON_FORMULE = () => link("boissons", { label: "Boisson", min: 1, max: 1, bySize: { sans: { min: 0, max: 0 } } });
+// Boisson facultative : le client l'ajoute seulement s'il le souhaite (supplément = écart de l'ancien prix "avec boisson")
+const BOISSON_OPT = (extra) => link("boissons", { label: "Ajouter une boisson", max: 1, extraPrice: extra });
 const MEAT_1 = (g = "viandes") => link(g, { label: "Viande", min: 1, max: 1 });
 const MEAT_SUPP = (g = "viandes") => link(g, { label: "Viande supplémentaire (+3,00 €)", extraPrice: 3, repeat: true });
-const AVEC_SANS = (sans, avec) => [
-  { id: "sans", label: "Sans boisson", price: sans },
-  { id: "avec", label: "Avec boisson", price: avec },
-];
 const sz = (label, price) => ({ id: slug(label), label, price });
 
 const CATEGORIES = [
@@ -128,67 +125,67 @@ const PRODUCTS = [
       link("viandes", { label: "Viandes", min: 1, max: 1, repeat: true, bySize: { m: { min: 1, max: 1 }, l: { min: 2, max: 2 }, xl: { min: 3, max: 3 } } }),
       SAUCE_1_OFFERTE(),
       SUPPS(),
-      link("boissons", { label: "Ajouter une boisson (+1,50 €)", max: 1, extraPrice: 1.5 }),
+      BOISSON_OPT(1.5),
     ],
   }),
 
   P("burgers", "Hamburger", {
     description: "Steak 80g, salade, tomates, oignons. Servi avec frites.",
-    sizes: AVEC_SANS(7.5, 9),
+    price: 7.5,
     ingredients: ["Salade", "Tomates", "Oignons"],
-    links: [SAUCE_1_OFFERTE(), SUPPS(), BOISSON_FORMULE()],
+    links: [SAUCE_1_OFFERTE(), SUPPS(), BOISSON_OPT(1.5)],
   }),
   P("burgers", "Cheeseburger", {
     description: "Steak 80g, tomates, oignons, cheddar. Servi avec frites.",
-    sizes: AVEC_SANS(8, 9.5),
+    price: 8,
     ingredients: ["Tomates", "Oignons", "Cheddar"],
-    links: [SAUCE_1_OFFERTE(), SUPPS(), BOISSON_FORMULE()],
+    links: [SAUCE_1_OFFERTE(), SUPPS(), BOISSON_OPT(1.5)],
   }),
   P("burgers", "O'Délices Burger", {
     id: "odelices-burger",
     description: "2 steaks, salade, tomates, oignons, cheddar + sauce au choix. Servi avec frites.",
     popular: true,
-    sizes: AVEC_SANS(10, 11.5),
+    price: 10,
     ingredients: ["Salade", "Tomates", "Oignons", "Cheddar"],
-    links: [SAUCE_1_OFFERTE(), SUPPS(), BOISSON_FORMULE()],
+    links: [SAUCE_1_OFFERTE(), SUPPS(), BOISSON_OPT(1.5)],
   }),
 
   P("sandwichs", "Döner Kebab", {
     id: "doner",
     description: "Salade, tomates, oignons. Viande supplémentaire : +3,00 €.",
     popular: true,
-    sizes: AVEC_SANS(9, 10.5),
+    price: 9,
     ingredients: ["Salade", "Tomates", "Oignons"],
-    links: [MEAT_1(), MEAT_SUPP(), PAIN(), SAUCE_1_OFFERTE(), SUPPS(), BOISSON_FORMULE()],
+    links: [MEAT_SUPP(), PAIN(), SAUCE_1_OFFERTE(), SUPPS(), BOISSON_OPT(1.5)],
   }),
   P("sandwichs", "Menu Falafel", {
     description: "Falafels, salade, tomates, oignons.",
-    sizes: AVEC_SANS(9, 10.5),
+    price: 9,
     ingredients: ["Salade", "Tomates", "Oignons"],
-    links: [PAIN(), SAUCE_1_OFFERTE(), SUPPS(), BOISSON_FORMULE()],
+    links: [PAIN(), SAUCE_1_OFFERTE(), SUPPS(), BOISSON_OPT(1.5)],
   }),
   P("sandwichs", "Formule Steak ou Poulet", {
     id: "steak-poulet",
     description: "Salade, tomates, oignons. Viande supplémentaire : +3,00 €.",
-    sizes: AVEC_SANS(9, 10.5),
+    price: 9,
     ingredients: ["Salade", "Tomates", "Oignons"],
-    links: [MEAT_1("viandes-steak-poulet"), MEAT_SUPP("viandes-supp-steak"), PAIN(), SAUCE_1_OFFERTE(), SUPPS(), BOISSON_FORMULE()],
+    links: [MEAT_1("viandes-steak-poulet"), MEAT_SUPP("viandes-supp-steak"), PAIN(), SAUCE_1_OFFERTE(), SUPPS(), BOISSON_OPT(1.5)],
   }),
   P("sandwichs", "Panini", {
     description: "Au choix parmi toutes nos viandes. Viande supplémentaire : +3,00 €.",
-    sizes: AVEC_SANS(7.5, 9),
-    links: [MEAT_1(), MEAT_SUPP(), SAUCE_1_OFFERTE(), SUPPS(), BOISSON_FORMULE()],
+    price: 7.5,
+    links: [MEAT_1(), MEAT_SUPP(), SAUCE_1_OFFERTE(), SUPPS(), BOISSON_OPT(1.5)],
   }),
   P("sandwichs", "Formule Assiette", {
     id: "assiette",
     description: "Kebab, nuggets, poulet, steak, tenders, cordon bleu ou falafels. Viande supplémentaire : +3,00 €.",
-    sizes: AVEC_SANS(13.5, 15.5),
-    links: [MEAT_1("viandes-assiette"), MEAT_SUPP("viandes-assiette"), PAIN(), SAUCE_1_OFFERTE(), SUPPS(), BOISSON_FORMULE()],
+    price: 13.5,
+    links: [MEAT_1("viandes-assiette"), MEAT_SUPP("viandes-assiette"), PAIN(), SAUCE_1_OFFERTE(), SUPPS(), BOISSON_OPT(2)],
   }),
   P("sandwichs", "Formule Nuggets", {
     description: "6 nuggets et frites.",
-    sizes: AVEC_SANS(7, 8),
-    links: [SAUCE_1_OFFERTE(), BOISSON_FORMULE()],
+    price: 7,
+    links: [SAUCE_1_OFFERTE(), BOISSON_OPT(1)],
   }),
 
   ...[
@@ -248,6 +245,25 @@ export const DEFAULT_SETTINGS = {
   clientTicketOnKitchen: true,
 };
 
+// Mise à jour des menus déjà enregistrés sur la tablette (version 1 → 2) :
+// formules "Sans / Avec boisson" → prix sans boisson + boisson facultative.
+export function migrateMenu(menu) {
+  for (const p of menu.products) {
+    const ids = (p.sizes || []).map((s) => s.id).join();
+    if (ids === "sans,avec") {
+      const sans = Number(p.sizes[0].price) || 0;
+      const avec = Number(p.sizes[1].price) || 0;
+      p.price = sans;
+      p.sizes = [];
+      p.links = (p.links || []).filter((l) => !(l.groupId === "boissons" && l.bySize && l.bySize.sans));
+      if (avec > sans) p.links.push({ ...BOISSON_OPT(Math.round((avec - sans) * 100) / 100), id: "l-boisson-" + p.id });
+    }
+    for (const l of p.links || []) if (l.label === "Ajouter une boisson (+1,50 €)") l.label = "Ajouter une boisson";
+    if (p.id === "doner") p.links = p.links.filter((l) => !(l.groupId === "viandes" && l.label === "Viande" && l.min === 1));
+  }
+  return menu;
+}
+
 export function defaultMenu() {
   return {
     categories: CATEGORIES.map((c) => ({ ...c, hidden: false })),
@@ -259,6 +275,7 @@ export function defaultMenu() {
 export function defaultData() {
   return {
     version: 1,
+    menuVersion: 2,
     menu: defaultMenu(),
     settings: JSON.parse(JSON.stringify(DEFAULT_SETTINGS)),
     counter: { day: "", n: 0 },
