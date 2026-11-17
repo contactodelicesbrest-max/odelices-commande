@@ -3,7 +3,7 @@
 import { Capacitor } from "@capacitor/core";
 import { Preferences } from "@capacitor/preferences";
 import { createContext, useCallback, useContext, useEffect, useRef, useState } from "react";
-import { defaultData, DEFAULT_SETTINGS, migrateMenu, migrateMenuV3, migrateMenuV4 } from "./defaultData.js";
+import { defaultData, DEFAULT_SETTINGS, migrateMenu, migrateMenuV3, migrateMenuV4, migrateMenuV5 } from "./defaultData.js";
 
 const DATA_KEY = "odelices.data.v1";
 const ORDERS_KEY = "odelices.orders.v1";
@@ -58,14 +58,15 @@ export function StoreProvider({ children }) {
           const parsed = JSON.parse(raw);
           d = { ...d, ...parsed, menuVersion: parsed.menuVersion || 1, settings: mergeDefaults(DEFAULT_SETTINGS, parsed.settings) };
         } catch {}
-        if (d.menuVersion < 4) {
+        if (d.menuVersion < 5) {
           if (d.menuVersion < 2) migrateMenu(d.menu);
           if (d.menuVersion < 3) migrateMenuV3(d.menu);
-          migrateMenuV4(d.menu);
+          if (d.menuVersion < 4) migrateMenuV4(d.menu);
+          migrateMenuV5(d.menu);
           // imprimante jamais configurée → réglages Sunmi NT311 (Bluetooth 80 mm)
           const k = d.settings.printers.kitchen;
           if (k.type === "none" && !k.address && !k.host) Object.assign(k, { type: "bluetooth", width: 48 });
-          d.menuVersion = 4;
+          d.menuVersion = 5;
           writeKey(DATA_KEY, JSON.stringify(d));
         }
       }
@@ -103,10 +104,11 @@ export function StoreProvider({ children }) {
 
   const replaceAll = useCallback(
     (d) => {
-      const merged = { ...defaultData(), ...d, menuVersion: 4, settings: mergeDefaults(DEFAULT_SETTINGS, d.settings) };
+      const merged = { ...defaultData(), ...d, menuVersion: 5, settings: mergeDefaults(DEFAULT_SETTINGS, d.settings) };
       if ((d.menuVersion || 1) < 2) migrateMenu(merged.menu);
       if ((d.menuVersion || 1) < 3) migrateMenuV3(merged.menu);
       if ((d.menuVersion || 1) < 4) migrateMenuV4(merged.menu);
+      if ((d.menuVersion || 1) < 5) migrateMenuV5(merged.menu);
       latest.current = merged;
       setData(merged);
       writeKey(DATA_KEY, JSON.stringify(merged));

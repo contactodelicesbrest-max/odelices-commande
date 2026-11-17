@@ -119,6 +119,8 @@ const P = (categoryId, name, { drink, ...fields } = {}) => ({
   ...(drink != null ? { sizes: drinkSizes(fields.price, drink) } : {}),
 });
 
+const BOUTEILLE_50 = () => P("boissons", "Bouteille 50cl", { id: "bouteille-50cl", price: 2.8 });
+
 // Produits ajoutés dans l'appli Comptoir (absents de l'ancien GitHub)
 const ROSTIBURGER = () =>
   P("burgers", "Rostiburger", {
@@ -245,12 +247,13 @@ const PRODUCTS = [
 
   P("boissons", "Coca-Cola", { sizes: [sz("33cl", 2), sz("Bouteille", 4.5)] }),
   ...["Ice Tea", "Sprite", "Perrier", "Red Bull", "Ayran", "Oasis", "Fanta"].map((n) => P("boissons", n, { price: 2, description: "33cl" })),
+  BOUTEILLE_50(),
   P("boissons", "Cristaline", { price: 1.5, description: "50cl" }),
   P("boissons", "Café", { price: 1.8 }),
   P("boissons", "Infusion", { price: 1.8 }),
 
   P("alcool", "Efes", { sizes: [sz("33cl", 4), sz("50cl", 6)], vatRate: 20 }),
-  P("alcool", "Heineken", { sizes: [sz("33cl", 4), sz("50cl", 4)], vatRate: 20 }),
+  P("alcool", "Heineken", { sizes: [sz("33cl", 3.5), sz("50cl", 4)], vatRate: 20 }),
   P("alcool", "8.6", { id: "86", price: 4, description: "33cl", vatRate: 20 }),
   P("alcool", "Vin rouge", { price: 13, description: "Bouteille 75cl", vatRate: 20 }),
   P("alcool", "Vin rosé", { price: 13, description: "Bouteille 75cl", vatRate: 20 }),
@@ -341,6 +344,18 @@ export function migrateMenuV4(menu) {
   return menu;
 }
 
+// Version 4 → 5 : Heineken 33cl à 3,50 € et nouvelle « Bouteille 50cl » à 2,80 €
+export function migrateMenuV5(menu) {
+  const h = menu.products.find((p) => p.id === "heineken");
+  const s33 = h?.sizes?.find((x) => x.id === "33cl");
+  if (s33 && Number(s33.price) === 4) s33.price = 3.5;
+  if (!menu.products.some((p) => p.id === "bouteille-50cl") && menu.categories.some((c) => c.id === "boissons")) {
+    const i = menu.products.findIndex((p) => p.id === "fanta");
+    menu.products.splice(i >= 0 ? i + 1 : menu.products.length, 0, BOUTEILLE_50());
+  }
+  return menu;
+}
+
 export function defaultMenu() {
   return {
     categories: CATEGORIES.map((c) => ({ ...c, hidden: false })),
@@ -352,7 +367,7 @@ export function defaultMenu() {
 export function defaultData() {
   return {
     version: 1,
-    menuVersion: 4,
+    menuVersion: 5,
     menu: defaultMenu(),
     settings: JSON.parse(JSON.stringify(DEFAULT_SETTINGS)),
     counter: { day: "", n: 0 },
