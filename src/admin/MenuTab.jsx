@@ -347,7 +347,10 @@ function ProductEditor({ initial, categories, groups, onClose, onSave }) {
           <div className="rows">
             {p.sizes.map((s, i) => (
               <div key={s.id} className="row">
-                <Text value={s.label} onChange={(v) => set({ sizes: p.sizes.map((x, k) => (k === i ? { ...x, label: v } : x)) })} placeholder="Ex : Avec boisson, XL…" />
+                <div className="size-fields">
+                  <Text value={s.label} onChange={(v) => set({ sizes: p.sizes.map((x, k) => (k === i ? { ...x, label: v } : x)) })} placeholder="Ex : Avec boisson, XL…" />
+                  <Text value={s.hint || ""} onChange={(v) => set({ sizes: p.sizes.map((x, k) => (k === i ? { ...x, hint: v } : x)) })} placeholder="Précision affichée au client (facultatif)" />
+                </div>
                 <div className="with-unit">
                   <Num value={s.price} onChange={(v) => set({ sizes: p.sizes.map((x, k) => (k === i ? { ...x, price: v } : x)) })} />
                   <span>€</span>

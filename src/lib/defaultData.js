@@ -50,11 +50,7 @@ const GROUPS = [
     options: [opt("Cheddar", 1), opt("Chèvre", 1.5), opt("Œuf", 1.5), opt("Oignons frits", 1)],
   },
   { id: "pain", name: "Pain ou galette", options: [opt("Pain"), opt("Galette")] },
-  {
-    id: "boissons",
-    name: "Boissons (canettes)",
-    options: ["Coca-Cola", "Ice Tea", "Sprite", "Perrier", "Oasis", "Fanta", "Cristaline"].map((n) => opt(n)),
-  },
+  { id: "avec-boisson", name: "Boisson (formule)", options: [{ id: "avec-boisson", name: "Avec boisson", price: 0, available: true }] },
   { id: "vin", name: "Vin", options: [opt("Rosé"), opt("Rouge")] },
 ];
 
@@ -78,7 +74,17 @@ const SAUCES_GRATUITES = () => link("sauces", { label: "Sauces (gratuites)" });
 const SUPPS = () => link("supplements", { label: "Suppléments", repeat: true });
 const PAIN = () => link("pain", { label: "Pain ou galette", min: 1, max: 1 });
 // Boisson facultative : le client l'ajoute seulement s'il le souhaite (supplément = écart de l'ancien prix "avec boisson")
-const BOISSON_OPT = (extra) => link("boissons", { label: "Ajouter une boisson", max: 1, extraPrice: extra });
+const BOISSON_OPT = (extra) => link("boissons", { label: "Ajouter une boisson", max: 1, extraPrice: extra }); // ancien format (v2.0.1/2.0.2), gardé pour la migration
+
+// Formules : simple choix « Sans boisson / Avec boisson ». Le client choisit sa boisson au comptoir.
+export const DRINK_HINT = "Canette 33cl au choix (hors Red Bull) ou bouteille 50cl, à choisir au comptoir";
+export const drinkSizes = (price, extra) => [
+  { id: "sans", label: "Sans boisson", price: Number(price) || 0 },
+  { id: "avec", label: "Avec boisson", price: Math.round(((Number(price) || 0) + (Number(extra) || 0)) * 100) / 100, hint: DRINK_HINT },
+];
+// Tacos (déjà décliné en M / L / XL) : la boisson est une option à cocher
+const TACOS_BOISSON = () => link("avec-boisson", { label: "Boisson", max: 1, extraPrice: 1.5 });
+const AVEC_BOISSON_GROUP = () => GROUPS.find((g) => g.id === "avec-boisson");
 const MEAT_1 = (g = "viandes") => link(g, { label: "Viande", min: 1, max: 1 });
 const MEAT_SUPP = (g = "viandes") => link(g, { label: "Viande supplémentaire (+3,00 €)", extraPrice: 3, repeat: true });
 const sz = (label, price) => ({ id: slug(label), label, price });
@@ -94,7 +100,8 @@ const CATEGORIES = [
   { id: "desserts", icon: "🍰", name: "Desserts", note: "" },
 ];
 
-const P = (categoryId, name, fields = {}) => ({
+const P = (categoryId, name, { drink, ...fields } = {}) => ({
+  ...(drink != null ? { sizes: drinkSizes(fields.price, drink) } : {}),
   id: fields.id || slug(name),
   categoryId,
   name,
@@ -109,22 +116,23 @@ const P = (categoryId, name, fields = {}) => ({
   hidden: false,
   popular: false,
   ...fields,
+  ...(drink != null ? { sizes: drinkSizes(fields.price, drink) } : {}),
 });
 
 // Produits ajoutés dans l'appli Comptoir (absents de l'ancien GitHub)
 const ROSTIBURGER = () =>
   P("burgers", "Rostiburger", {
     description: "Servi avec frites, salade, tomates, oignons.",
-    price: 11.5,
+    price: 11.5, drink: 1.5,
     ingredients: ["Salade", "Tomates", "Oignons"],
-    links: [SAUCE_1_OFFERTE(), SUPPS(), BOISSON_OPT(1.5)],
+    links: [SAUCE_1_OFFERTE(), SUPPS()],
   });
 const PIZZA_TURC = () =>
   P("sandwichs", "Pizza Turc", {
     description: "Base galette, salade, tomates, oignons. Viande supplémentaire : +3,00 €.",
-    price: 9.5,
+    price: 9.5, drink: 1.5,
     ingredients: ["Salade", "Tomates", "Oignons"],
-    links: [MEAT_SUPP(), SAUCE_1_OFFERTE(), SUPPS(), BOISSON_OPT(1.5)],
+    links: [MEAT_SUPP(), SAUCE_1_OFFERTE(), SUPPS()],
   });
 const MOZZA_STICKS = () =>
   P("petite-faim", "Mozzarella sticks", {
@@ -152,29 +160,29 @@ const PRODUCTS = [
       link("viandes", { label: "Viandes", min: 1, max: 1, repeat: true, bySize: { m: { min: 1, max: 1 }, l: { min: 2, max: 2 }, xl: { min: 3, max: 3 } } }),
       SAUCE_1_OFFERTE(),
       SUPPS(),
-      BOISSON_OPT(1.5),
+      TACOS_BOISSON(),
     ],
   }),
 
   P("burgers", "Hamburger", {
     description: "Steak 80g, salade, tomates, oignons. Servi avec frites.",
-    price: 7.5,
+    price: 7.5, drink: 1.5,
     ingredients: ["Salade", "Tomates", "Oignons"],
-    links: [SAUCE_1_OFFERTE(), SUPPS(), BOISSON_OPT(1.5)],
+    links: [SAUCE_1_OFFERTE(), SUPPS()],
   }),
   P("burgers", "Cheeseburger", {
     description: "Steak 80g, tomates, oignons, cheddar. Servi avec frites.",
-    price: 8,
+    price: 8, drink: 1.5,
     ingredients: ["Tomates", "Oignons", "Cheddar"],
-    links: [SAUCE_1_OFFERTE(), SUPPS(), BOISSON_OPT(1.5)],
+    links: [SAUCE_1_OFFERTE(), SUPPS()],
   }),
   P("burgers", "O'Délices Burger", {
     id: "odelices-burger",
     description: "2 steaks, salade, tomates, oignons, cheddar + sauce au choix. Servi avec frites.",
     popular: true,
-    price: 10,
+    price: 10, drink: 1.5,
     ingredients: ["Salade", "Tomates", "Oignons", "Cheddar"],
-    links: [SAUCE_1_OFFERTE(), SUPPS(), BOISSON_OPT(1.5)],
+    links: [SAUCE_1_OFFERTE(), SUPPS()],
   }),
   ROSTIBURGER(),
 
@@ -182,39 +190,39 @@ const PRODUCTS = [
     id: "doner",
     description: "Salade, tomates, oignons. Viande supplémentaire : +3,00 €.",
     popular: true,
-    price: 9,
+    price: 9, drink: 1.5,
     ingredients: ["Salade", "Tomates", "Oignons"],
-    links: [MEAT_SUPP(), PAIN(), SAUCE_1_OFFERTE(), SUPPS(), BOISSON_OPT(1.5)],
+    links: [MEAT_SUPP(), PAIN(), SAUCE_1_OFFERTE(), SUPPS()],
   }),
   PIZZA_TURC(),
   P("sandwichs", "Menu Falafel", {
     description: "Falafels, salade, tomates, oignons.",
-    price: 9,
+    price: 9, drink: 1.5,
     ingredients: ["Salade", "Tomates", "Oignons"],
-    links: [PAIN(), SAUCE_1_OFFERTE(), SUPPS(), BOISSON_OPT(1.5)],
+    links: [PAIN(), SAUCE_1_OFFERTE(), SUPPS()],
   }),
   P("sandwichs", "Formule Steak ou Poulet", {
     id: "steak-poulet",
     description: "Salade, tomates, oignons. Viande supplémentaire : +3,00 €.",
-    price: 9,
+    price: 9, drink: 1.5,
     ingredients: ["Salade", "Tomates", "Oignons"],
-    links: [MEAT_1("viandes-steak-poulet"), MEAT_SUPP("viandes-supp-steak"), PAIN(), SAUCE_1_OFFERTE(), SUPPS(), BOISSON_OPT(1.5)],
+    links: [MEAT_1("viandes-steak-poulet"), MEAT_SUPP("viandes-supp-steak"), PAIN(), SAUCE_1_OFFERTE(), SUPPS()],
   }),
   P("sandwichs", "Panini", {
     description: "Au choix parmi toutes nos viandes. Viande supplémentaire : +3,00 €.",
-    price: 7.5,
-    links: [MEAT_1(), MEAT_SUPP(), SAUCE_1_OFFERTE(), SUPPS(), BOISSON_OPT(1.5)],
+    price: 7.5, drink: 1.5,
+    links: [MEAT_1(), MEAT_SUPP(), SAUCE_1_OFFERTE(), SUPPS()],
   }),
   P("sandwichs", "Formule Assiette", {
     id: "assiette",
     description: "Kebab, nuggets, poulet, steak, tenders, cordon bleu ou falafels. Viande supplémentaire : +3,00 €.",
-    price: 13.5,
-    links: [MEAT_1("viandes-assiette"), MEAT_SUPP("viandes-assiette"), PAIN(), SAUCE_1_OFFERTE(), SUPPS(), BOISSON_OPT(1.5)],
+    price: 13.5, drink: 1.5,
+    links: [MEAT_1("viandes-assiette"), MEAT_SUPP("viandes-assiette"), PAIN(), SAUCE_1_OFFERTE(), SUPPS()],
   }),
   P("sandwichs", "Formule Nuggets", {
     description: "6 nuggets et frites.",
-    price: 7,
-    links: [SAUCE_1_OFFERTE(), BOISSON_OPT(1)],
+    price: 7, drink: 1,
+    links: [SAUCE_1_OFFERTE()],
   }),
 
   ...[
@@ -313,6 +321,26 @@ export function migrateMenuV3(menu) {
   return menu;
 }
 
+// Version 3 → 4 : « Ajouter une boisson (choix de la boisson) » → format « Sans / Avec boisson »
+export function migrateMenuV4(menu) {
+  let usesTacosDrink = false;
+  for (const p of menu.products) {
+    const l = (p.links || []).find((x) => x.groupId === "boissons" && x.label === "Ajouter une boisson");
+    if (!l) continue;
+    if (!p.sizes || p.sizes.length === 0) {
+      p.sizes = drinkSizes(p.price, l.extraPrice);
+      p.links = p.links.filter((x) => x !== l);
+    } else {
+      Object.assign(l, { groupId: "avec-boisson", label: "Boisson", min: 0, max: 1, free: 0, repeat: false, bySize: {} });
+      usesTacosDrink = true;
+    }
+  }
+  if (usesTacosDrink && !menu.groups.some((g) => g.id === "avec-boisson")) menu.groups.push(structuredClone(AVEC_BOISSON_GROUP()));
+  // l'ancienne liste « Boissons (canettes) » ne sert plus si plus aucun produit ne l'utilise
+  if (!menu.products.some((p) => (p.links || []).some((x) => x.groupId === "boissons"))) menu.groups = menu.groups.filter((g) => g.id !== "boissons");
+  return menu;
+}
+
 export function defaultMenu() {
   return {
     categories: CATEGORIES.map((c) => ({ ...c, hidden: false })),
@@ -324,7 +352,7 @@ export function defaultMenu() {
 export function defaultData() {
   return {
     version: 1,
-    menuVersion: 3,
+    menuVersion: 4,
     menu: defaultMenu(),
     settings: JSON.parse(JSON.stringify(DEFAULT_SETTINGS)),
     counter: { day: "", n: 0 },

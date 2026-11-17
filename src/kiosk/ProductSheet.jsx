@@ -111,7 +111,7 @@ export default function ProductSheet({ icon, product, groupsById, initial, onClo
           {sizes.length > 1 && (
             <section className="opt-section">
               <header>
-                <h3>Format</h3>
+                <h3>{sizes.every((s) => /boisson/i.test(s.label)) ? "Boisson" : "Format"}</h3>
                 <span className="opt-hint">Obligatoire</span>
               </header>
               <div className="size-grid">
@@ -119,6 +119,7 @@ export default function ProductSheet({ icon, product, groupsById, initial, onClo
                   <button key={s.id} className={`size-card ${sizeId === s.id ? "on" : ""}`} onClick={() => pickSize(s.id)}>
                     <span className="size-label">{s.label}</span>
                     <span className="size-price">{money(s.price)}</span>
+                    {s.hint && <span className="size-hint">{s.hint}</span>}
                     {sizeId === s.id && <Check className="size-check" size={20} />}
                   </button>
                 ))}

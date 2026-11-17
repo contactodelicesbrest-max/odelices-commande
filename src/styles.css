@@ -183,6 +183,8 @@ img { -webkit-user-drag: none; }
 .size-card.on { border-color: var(--fire); background: rgba(232, 69, 44, 0.12); }
 .size-label { font-weight: 800; font-size: 17px; }
 .size-price { color: var(--gold); font-weight: 800; }
+.size-hint { color: var(--muted); font-size: 13px; line-height: 1.3; }
+.size-fields { display: flex; flex-direction: column; gap: 6px; min-width: 0; }
 .size-check { position: absolute; top: 10px; right: 10px; color: var(--fire2); }
 .chip-row { display: flex; flex-wrap: wrap; gap: 10px; }
 .chip { min-height: 52px; padding: 0 18px; border-radius: 14px; background: var(--panel); border: 2px solid var(--line); font-weight: 700; font-size: 15px; display: inline-flex; align-items: center; gap: 6px; color: var(--text); transition: background 0.15s, border-color 0.15s; }
