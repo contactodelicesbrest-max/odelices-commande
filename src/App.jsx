@@ -10,7 +10,7 @@ function Shell() {
   const [mode, setMode] = useState("kiosk"); // kiosk | pin | admin
   const toKiosk = useCallback(() => setMode("kiosk"), []);
   const toAdmin = useCallback(() => setMode("admin"), []);
-  const del = <DeleteApp pin={data.settings.adminPin} needPin={mode !== "admin"} inAdmin={mode === "admin"} />;
+  const del = <DeleteApp inAdmin={mode === "admin"} />;
   if (mode === "admin")
     return (
       <>

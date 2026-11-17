@@ -1,7 +1,6 @@
 import { useEffect, useState } from "react";
 import { Trash2 } from "lucide-react";
 import { wipeAndUninstall } from "../lib/native.js";
-import PinPad from "./PinPad.jsx";
 import { Field, Modal, Text } from "./ui.jsx";
 
 // Ouvre la suppression depuis n'importe où (ex. bouton de l'onglet Réglages)
@@ -9,11 +8,10 @@ export const openDeleteApp = () => window.dispatchEvent(new Event("odelices:dele
 
 /**
  * Bouton rouge « Supprimer l'appli », visible sur tous les écrans.
- * Sur les écrans clients, le code PIN gérant est demandé d'abord,
- * puis il faut taper SUPPRIMER pour confirmer.
+ * Pas de code PIN : il suffit de taper SUPPRIMER pour confirmer.
  */
-export default function DeleteApp({ pin, needPin, inAdmin }) {
-  const [step, setStep] = useState(null); // null | "pin" | "confirm"
+export default function DeleteApp({ inAdmin }) {
+  const [step, setStep] = useState(null); // null | "confirm"
   const [text, setText] = useState("");
   const [wiping, setWiping] = useState(false);
   const [error, setError] = useState("");
@@ -21,7 +19,7 @@ export default function DeleteApp({ pin, needPin, inAdmin }) {
   const open = () => {
     setText("");
     setError("");
-    setStep(needPin ? "pin" : "confirm");
+    setStep("confirm");
   };
   useEffect(() => {
     window.addEventListener("odelices:delete-app", open);
@@ -33,8 +31,6 @@ export default function DeleteApp({ pin, needPin, inAdmin }) {
       <button className={`delete-fab ${inAdmin ? "in-admin" : ""}`} onClick={open} aria-label="Supprimer l'application">
         <Trash2 size={18} /> <span>Supprimer l'appli</span>
       </button>
-
-      {step === "pin" && <PinPad pin={pin} onOk={() => setStep("confirm")} onCancel={() => setStep(null)} />}
 
       {step === "confirm" && (
         <Modal

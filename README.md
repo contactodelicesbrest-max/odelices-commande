@@ -60,7 +60,7 @@ Compatible avec la grande majorité des imprimantes thermiques ESC/POS (Epson, X
 
 ## Supprimer l'application
 
-Bouton rouge **« Supprimer l'appli »**, visible sur tous les écrans (sur les écrans clients, le code PIN gérant est demandé d'abord, puis il faut taper « SUPPRIMER ») : efface le menu, les réglages, les commandes et les fichiers exportés, puis ouvre la fenêtre de désinstallation d'Android. L'application ne fait aucune sauvegarde automatique sur Google : rien ne revient après une réinstallation.
+Bouton rouge **« Supprimer l'appli »**, visible sur tous les écrans, sans code PIN (il faut seulement taper « SUPPRIMER » pour confirmer) : efface le menu, les réglages, les commandes et les fichiers exportés, puis ouvre la fenêtre de désinstallation d'Android. L'application ne fait aucune sauvegarde automatique sur Google : rien ne revient après une réinstallation.
 
 ## Sauvegarde
 
