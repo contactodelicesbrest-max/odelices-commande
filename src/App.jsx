@@ -3,17 +3,26 @@ import { StoreProvider, useStore } from "./lib/store.jsx";
 import Kiosk from "./kiosk/Kiosk.jsx";
 import Admin from "./admin/Admin.jsx";
 import PinPad from "./admin/PinPad.jsx";
+import DeleteApp from "./admin/DeleteApp.jsx";
 
 function Shell() {
   const { data } = useStore();
   const [mode, setMode] = useState("kiosk"); // kiosk | pin | admin
   const toKiosk = useCallback(() => setMode("kiosk"), []);
   const toAdmin = useCallback(() => setMode("admin"), []);
-  if (mode === "admin") return <Admin onExit={toKiosk} />;
+  const del = <DeleteApp pin={data.settings.adminPin} needPin={mode !== "admin"} inAdmin={mode === "admin"} />;
+  if (mode === "admin")
+    return (
+      <>
+        <Admin onExit={toKiosk} />
+        {del}
+      </>
+    );
   return (
     <>
       <Kiosk onAdmin={() => setMode("pin")} />
       {mode === "pin" && <PinPad pin={data.settings.adminPin} onOk={toAdmin} onCancel={toKiosk} />}
+      {del}
     </>
   );
 }
