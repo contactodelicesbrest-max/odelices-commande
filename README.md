@@ -12,7 +12,7 @@ L'application fonctionne **sans internet** : le menu et les commandes sont enreg
 
 ## Installer l'APK sur la tablette
 
-1. Copiez le fichier `ODelices-Borne-v2.0.6.apk` sur la tablette (câble USB, Google Drive, e-mail…).
+1. Copiez le fichier `ODelices-Borne-v2.0.7.apk` sur la tablette (câble USB, Google Drive, e-mail…).
 2. Ouvrez-le depuis la tablette. Si Android le demande, autorisez « Installer des applications inconnues » pour l'application qui ouvre le fichier (Fichiers, Drive…).
 3. Lancez **O'Délices Borne**.
 
@@ -60,7 +60,7 @@ Compatible avec la grande majorité des imprimantes thermiques ESC/POS (Epson, X
 
 ## Supprimer l'application
 
-Bouton rouge **« Supprimer l'appli »**, visible sur tous les écrans, sans code PIN (il faut seulement taper « SUPPRIMER » pour confirmer) : efface le menu, les réglages, les commandes et les fichiers exportés, puis ouvre la fenêtre de désinstallation d'Android. L'application ne fait aucune sauvegarde automatique sur Google : rien ne revient après une réinstallation.
+Bouton rouge **« Supprimer l'appli »**, visible sur tous les écrans : un seul appui, sans code ni texte à taper : efface le menu, les réglages, les commandes et les fichiers exportés, puis ouvre la fenêtre de désinstallation d'Android. L'application ne fait aucune sauvegarde automatique sur Google : rien ne revient après une réinstallation.
 
 ## Sauvegarde
 
