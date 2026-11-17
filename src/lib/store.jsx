@@ -20,6 +20,7 @@ async function readKey(key) {
   }
 }
 async function writeKey(key, value) {
+  if (window.__odelicesWiped) return;
   try {
     if (native) await Preferences.set({ key, value });
     else localStorage.setItem(key, value);

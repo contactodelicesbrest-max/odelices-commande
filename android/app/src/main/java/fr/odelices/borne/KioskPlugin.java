@@ -2,6 +2,11 @@ package fr.odelices.borne;
 
 import android.app.ActivityManager;
 import android.content.Context;
+import android.content.Intent;
+import android.net.Uri;
+import android.webkit.CookieManager;
+import android.webkit.WebStorage;
+import java.io.File;
 import android.os.Build;
 import com.getcapacitor.JSObject;
 import com.getcapacitor.Plugin;
@@ -49,5 +54,42 @@ public class KioskPlugin extends Plugin {
         JSObject r = new JSObject();
         r.put("active", active);
         call.resolve(r);
+    }
+
+    /**
+     * Efface toutes les données de l'appli (menu, réglages, commandes, fichiers exportés),
+     * puis ouvre la fenêtre Android de désinstallation.
+     */
+    @PluginMethod
+    public void wipeAndUninstall(PluginCall call) {
+        getActivity().runOnUiThread(() -> {
+            try { getActivity().stopLockTask(); } catch (Exception ignored) { }
+            try {
+                getContext().getSharedPreferences("CapacitorStorage", Context.MODE_PRIVATE).edit().clear().commit();
+                WebStorage.getInstance().deleteAllData();
+                CookieManager.getInstance().removeAllCookies(null);
+                deleteRecursive(getContext().getCacheDir());
+                deleteRecursive(getContext().getFilesDir());
+                File ext = getContext().getExternalCacheDir();
+                if (ext != null) deleteRecursive(ext);
+            } catch (Exception ignored) { }
+            try {
+                Intent intent = new Intent(Intent.ACTION_DELETE, Uri.parse("package:" + getContext().getPackageName()));
+                intent.addFlags(Intent.FLAG_ACTIVITY_NEW_TASK);
+                getActivity().startActivity(intent);
+                call.resolve();
+            } catch (Exception e) {
+                call.reject("Ouvrez Paramètres > Applications > O'Délices Borne > Désinstaller");
+            }
+        });
+    }
+
+    private static void deleteRecursive(File f) {
+        if (f == null || !f.exists()) return;
+        File[] children = f.listFiles();
+        if (children != null) for (File c : children) {
+            if (c.isDirectory()) deleteRecursive(c);
+            c.delete();
+        }
     }
 }

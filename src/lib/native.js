@@ -45,6 +45,22 @@ export async function setKiosk(on) {
   }
 }
 
+// Efface toutes les données puis ouvre la désinstallation Android (navigateur : efface et recharge)
+export async function wipeAndUninstall() {
+  window.__odelicesWiped = true; // plus aucune écriture après l'effacement
+  try {
+    if (isNative) {
+      const { Preferences } = await import("@capacitor/preferences");
+      await Preferences.clear();
+    }
+    localStorage.clear();
+    sessionStorage.clear();
+  } catch {}
+  if (isNative) await Kiosk.wipeAndUninstall();
+  // si la désinstallation est annulée, l'appli repart à zéro
+  setTimeout(() => window.location.reload(), 600);
+}
+
 export async function isKioskActive() {
   if (!isNative) return false;
   try {

@@ -455,3 +455,8 @@ textarea.input { height: auto; padding: 10px 14px; resize: vertical; }
   .row, .opt-rows .row { grid-template-columns: 1fr 120px; }
   .link-head { grid-template-columns: 1fr; }
 }
+
+/* Zone de suppression */
+.card-danger { border-color: rgba(239, 83, 80, 0.45); }
+.card-danger h3 { color: var(--err); }
+.btn-danger { background: var(--err) !important; box-shadow: 0 6px 18px rgba(239, 83, 80, 0.3) !important; }

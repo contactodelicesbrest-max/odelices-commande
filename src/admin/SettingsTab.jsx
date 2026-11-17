@@ -1,9 +1,9 @@
 import { useEffect, useState } from "react";
-import { Download, Lock, RotateCcw, Upload } from "lucide-react";
+import { Download, Lock, RotateCcw, Trash2, TriangleAlert, Upload } from "lucide-react";
 import { useStore } from "../lib/store.jsx";
 import { defaultMenu } from "../lib/defaultData.js";
-import { isKioskActive, isNative, setKiosk, shareFile, textToBase64 } from "../lib/native.js";
-import { Field, Num, Text, Toggle } from "./ui.jsx";
+import { isKioskActive, isNative, setKiosk, shareFile, textToBase64, wipeAndUninstall } from "../lib/native.js";
+import { Field, Modal, Num, Text, Toggle } from "./ui.jsx";
 
 export default function SettingsTab({ toast }) {
   const { data, update, replaceAll } = useStore();
@@ -11,6 +11,8 @@ export default function SettingsTab({ toast }) {
   const set = (patch) => update((d) => void Object.assign(d.settings, patch));
   const [pin, setPin] = useState({ a: "", b: "" });
   const [kiosk, setKioskState] = useState(false);
+  const [wipe, setWipe] = useState(null); // null | "" (texte tapé)
+  const [wiping, setWiping] = useState(false);
 
   useEffect(() => {
     isKioskActive().then(setKioskState);
@@ -147,6 +149,58 @@ export default function SettingsTab({ toast }) {
           </button>
         </div>
       </section>
+
+      <section className="card card-danger">
+        <h3>
+          <TriangleAlert size={18} /> Supprimer l'application
+        </h3>
+        <p className="field-hint">
+          Efface <b>définitivement</b> le menu, les réglages, l'historique des commandes et les fichiers exportés sur cette tablette, puis désinstalle l'application. Rien n'est
+          sauvegardé sur internet : ces données ne pourront pas être récupérées. Pensez à exporter le menu et le rapport du jour avant si besoin.
+        </p>
+        <button className="btn-primary btn-danger" onClick={() => setWipe("")}>
+          <Trash2 size={16} /> Supprimer l'application et toutes ses données
+        </button>
+      </section>
+
+      {wipe !== null && (
+        <Modal
+          title="Supprimer définitivement ?"
+          onClose={() => !wiping && setWipe(null)}
+          footer={
+            <>
+              <span className="spacer" />
+              <button className="btn-ghost" disabled={wiping} onClick={() => setWipe(null)}>
+                Annuler
+              </button>
+              <button
+                className="btn-primary btn-danger"
+                disabled={wipe.trim().toUpperCase() !== "SUPPRIMER" || wiping}
+                onClick={async () => {
+                  setWiping(true);
+                  try {
+                    await wipeAndUninstall();
+                  } catch (e) {
+                    toast(e.message || String(e), true);
+                    setTimeout(() => window.location.reload(), 2500);
+                  }
+                }}
+              >
+                <Trash2 size={16} /> {wiping ? "Suppression…" : "Tout supprimer"}
+              </button>
+            </>
+          }
+        >
+          <p>Toutes les données de la borne vont être effacées : menu, prix, photos, réglages, imprimantes, commandes et chiffre d'affaires.</p>
+          <p>
+            Android vous demandera ensuite de <b>confirmer la désinstallation</b>. Si vous annulez à ce moment-là, l'application restera installée mais repartira de zéro (menu d'origine,
+            code PIN 1234).
+          </p>
+          <Field label="Pour confirmer, tapez SUPPRIMER">
+            <Text value={wipe} onChange={setWipe} autoFocus autoComplete="off" placeholder="SUPPRIMER" />
+          </Field>
+        </Modal>
+      )}
     </div>
   );
 }
