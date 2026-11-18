@@ -1,5 +1,5 @@
 import { useMemo, useState } from "react";
-import { ChevronLeft, ChevronRight, FileDown, Printer, RotateCcw, Ban, CheckCircle2, AlertTriangle } from "lucide-react";
+import { ChevronLeft, ChevronRight, FileDown, Printer, RotateCcw, Ban, CheckCircle2, AlertTriangle, Trash2 } from "lucide-react";
 import { useStore, dayKey } from "../lib/store.jsx";
 import { money, vatBreakdown } from "../lib/pricing.js";
 import { printOrderTickets } from "../lib/orderService.js";
@@ -8,7 +8,8 @@ import { clientTicket, kitchenTicket, reportTicket } from "../lib/tickets.js";
 import { Modal, TicketPreview } from "./ui.jsx";
 
 export default function OrdersTab({ toast }) {
-  const { data, orders, patchOrder } = useStore();
+  const { data, orders, patchOrder, deleteOrders } = useStore();
+  const [clearing, setClearing] = useState(false);
   const s = data.settings;
   const [day, setDay] = useState(dayKey());
   const [open, setOpen] = useState(null);
@@ -144,6 +145,9 @@ export default function OrdersTab({ toast }) {
         <button className="btn-ghost btn-sm" onClick={exportCsv}>
           <FileDown size={16} /> Excel (CSV)
         </button>
+        <button className="btn-ghost btn-sm danger" onClick={() => setClearing(true)} disabled={!orders.some((o) => o.paid)}>
+          <Trash2 size={16} /> Supprimer les commandes payées
+        </button>
       </div>
 
       <div className="kpis">
@@ -214,6 +218,37 @@ export default function OrdersTab({ toast }) {
           onPatch={(patch) => patchOrder(open.id, patch)}
           settings={s}
         />
+      )}
+      {clearing && (
+        <Modal
+          title="Supprimer les commandes payées ?"
+          onClose={() => setClearing(false)}
+          footer={
+            <>
+              <span className="spacer" />
+              <button className="btn-ghost" onClick={() => setClearing(false)}>
+                Annuler
+              </button>
+              <button
+                className="btn-primary btn-danger"
+                onClick={() => {
+                  const n = deleteOrders((o) => o.paid);
+                  setClearing(false);
+                  toast(`${n} commande${n > 1 ? "s" : ""} payée${n > 1 ? "s" : ""} supprimée${n > 1 ? "s" : ""}`);
+                }}
+              >
+                <Trash2 size={16} /> Supprimer
+              </button>
+            </>
+          }
+        >
+          <p>
+            <b>{orders.filter((o) => o.paid).length} commande{orders.filter((o) => o.paid).length > 1 ? "s" : ""} payée{orders.filter((o) => o.paid).length > 1 ? "s" : ""}</b> (tous les jours confondus) vont être effacées définitivement de
+            l'historique. Elles ne compteront plus dans le chiffre d'affaires ni dans les rapports.
+          </p>
+          <p>Les commandes pas encore encaissées et les commandes annulées sont conservées.</p>
+          <p className="field-hint">Astuce : exportez d'abord le rapport en PDF ou Excel si vous voulez en garder une trace.</p>
+        </Modal>
       )}
       {preview && (
         <Modal title="Aperçu du ticket" onClose={() => setPreview(null)}>

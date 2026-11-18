@@ -144,6 +144,16 @@ export function StoreProvider({ children }) {
   }, [update]);
 
   const addOrder = useCallback((order) => saveOrders([...ordersRef.current, order]), [saveOrders]);
+  // Supprime définitivement les commandes qui répondent au filtre ; renvoie le nombre supprimé
+  const deleteOrders = useCallback(
+    (match) => {
+      const keep = ordersRef.current.filter((o) => !match(o));
+      const n = ordersRef.current.length - keep.length;
+      if (n) saveOrders(keep);
+      return n;
+    },
+    [saveOrders]
+  );
   const patchOrder = useCallback(
     (id, patch) => saveOrders(ordersRef.current.map((o) => (o.id === id ? { ...o, ...patch } : o))),
     [saveOrders]
@@ -151,7 +161,7 @@ export function StoreProvider({ children }) {
 
   if (!data) return <div className="boot">Chargement…</div>;
   return (
-    <StoreCtx.Provider value={{ data, update, replaceAll, orders, addOrder, patchOrder, nextTicketNumber }}>
+    <StoreCtx.Provider value={{ data, update, replaceAll, orders, addOrder, patchOrder, deleteOrders, nextTicketNumber }}>
       {children}
     </StoreCtx.Provider>
   );
