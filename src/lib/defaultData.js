@@ -124,18 +124,18 @@ const P = (categoryId, name, { drink, ...fields } = {}) => ({
 const BOUTEILLE_50 = () => P("boissons", "Bouteille 50cl", { id: "bouteille-50cl", price: 2.8 });
 
 // Produits ajoutés dans l'appli Comptoir (absents de l'ancien GitHub)
-// Mêmes options que le O'Délices Burger : sauces, suppléments, ingrédients, sans/avec boisson
+// Mêmes options que le O'Délices Burger (sauces, suppléments, ingrédients, sans/avec boisson) — 9,50 € / 11,00 €
 const CHICKEN_BURGER = () =>
   P("burgers", "Chicken Burger", {
     description: "Poulet, salade, tomates, oignons, cheddar + sauce au choix. Servi avec frites.",
-    price: 10, drink: 1.5,
+    price: 9.5, drink: 1.5,
     ingredients: ["Salade", "Tomates", "Oignons", "Cheddar"],
     links: [SAUCE_1_OFFERTE(), SUPPS()],
   });
 const FISH_BURGER = () =>
   P("burgers", "Fish Burger", {
     description: "Poisson pané, salade, tomates, oignons, cheddar + sauce au choix. Servi avec frites.",
-    price: 10, drink: 1.5,
+    price: 9.5, drink: 1.5,
     ingredients: ["Salade", "Tomates", "Oignons", "Cheddar"],
     links: [SAUCE_1_OFFERTE(), SUPPS()],
   });
@@ -392,6 +392,18 @@ export function migrateMenuV6(menu) {
   return menu;
 }
 
+// Version 6 → 7 : Chicken et Fish Burger à 9,50 € (11,00 € avec boisson)
+export function migrateMenuV7(menu) {
+  for (const id of ["chicken-burger", "fish-burger"]) {
+    const p = menu.products.find((x) => x.id === id);
+    if (!p) continue;
+    const sans = p.sizes?.find((x) => x.id === "sans"), avec = p.sizes?.find((x) => x.id === "avec");
+    if (sans && Number(sans.price) === 10) sans.price = 9.5;
+    if (avec && Number(avec.price) === 11.5) avec.price = 11;
+  }
+  return menu;
+}
+
 export function defaultMenu() {
   return {
     categories: CATEGORIES.map((c) => ({ ...c, hidden: false })),
@@ -403,7 +415,7 @@ export function defaultMenu() {
 export function defaultData() {
   return {
     version: 1,
-    menuVersion: 6,
+    menuVersion: 7,
     menu: defaultMenu(),
     settings: JSON.parse(JSON.stringify(DEFAULT_SETTINGS)),
     counter: { day: "", n: 0 },
