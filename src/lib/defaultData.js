@@ -3,6 +3,8 @@
 
 const opt = (name, price = 0) => ({ id: slug(name), name, price, available: true });
 
+export const clone = (x) => JSON.parse(JSON.stringify(x));
+
 export function slug(s) {
   return (
     String(s)
@@ -338,7 +340,7 @@ export function migrateMenuV4(menu) {
       usesTacosDrink = true;
     }
   }
-  if (usesTacosDrink && !menu.groups.some((g) => g.id === "avec-boisson")) menu.groups.push(structuredClone(AVEC_BOISSON_GROUP()));
+  if (usesTacosDrink && !menu.groups.some((g) => g.id === "avec-boisson")) menu.groups.push(clone(AVEC_BOISSON_GROUP()));
   // l'ancienne liste « Boissons (canettes) » ne sert plus si plus aucun produit ne l'utilise
   if (!menu.products.some((p) => (p.links || []).some((x) => x.groupId === "boissons"))) menu.groups = menu.groups.filter((g) => g.id !== "boissons");
   return menu;

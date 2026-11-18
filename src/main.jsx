@@ -9,4 +9,4 @@ import "@fontsource/inter/800.css";
 import "./styles.css";
 import App from "./App.jsx";
 
-ReactDOM.createRoot(document.getElementById("root")).render(<App />);
+if (!window.__oldWebView) ReactDOM.createRoot(document.getElementById("root")).render(<App />);

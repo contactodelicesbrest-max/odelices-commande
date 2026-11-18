@@ -67,7 +67,7 @@ img { -webkit-user-drag: none; }
 .welcome-cta { color: var(--muted); font-size: 20px; margin: 28px 0 30px; }
 .welcome-types { display: flex; gap: 24px; flex-wrap: wrap; justify-content: center; position: relative; }
 .type-card {
-  width: min(300px, 40vw); min-width: 240px; aspect-ratio: 1 / 0.9; border-radius: 28px;
+  width: 300px; max-width: 40vw; min-width: 240px; height: 270px; border-radius: 28px;
   background: linear-gradient(160deg, var(--panel2), var(--panel)); border: 1px solid var(--line);
   display: flex; flex-direction: column; align-items: center; justify-content: center; gap: 10px; color: var(--text);
   box-shadow: var(--shadow); transition: transform 0.15s, border-color 0.2s;
@@ -105,7 +105,8 @@ img { -webkit-user-drag: none; }
 .p-card:active:not(:disabled) { transform: scale(0.97); border-color: var(--fire); }
 .p-card.out { opacity: 0.45; }
 @keyframes pop { from { opacity: 0; transform: translateY(8px); } }
-.p-img-wrap { position: relative; aspect-ratio: 4 / 3; }
+.p-img-wrap { position: relative; height: 0; padding-top: 75%; }
+.p-img-wrap > .p-img { position: absolute; top: 0; left: 0; }
 .p-img { width: 100%; height: 100%; object-fit: cover; display: block; }
 .img-ph { display: grid; place-items: center; background: radial-gradient(circle at 30% 20%, hsl(var(--h) 70% 38%), hsl(var(--h) 60% 16%)); }
 .img-ph span { font-family: var(--display); font-size: 64px; color: rgba(255, 255, 255, 0.92); letter-spacing: 0.04em; text-shadow: 0 4px 20px rgba(0, 0, 0, 0.35); }
@@ -155,10 +156,10 @@ img { -webkit-user-drag: none; }
 .qty-lg span { min-width: 44px; font-size: 22px; }
 
 /* ---------- Fiche produit ---------- */
-.sheet-backdrop { position: fixed; inset: 0; z-index: 50; background: rgba(8, 5, 4, 0.72); backdrop-filter: blur(6px); display: flex; align-items: center; justify-content: center; padding: 24px; animation: fade 0.18s ease; }
+.sheet-backdrop { position: fixed; top: 0; right: 0; bottom: 0; left: 0; z-index: 50; background: rgba(8, 5, 4, 0.72); backdrop-filter: blur(6px); display: flex; align-items: center; justify-content: center; padding: 24px; animation: fade 0.18s ease; }
 @keyframes fade { from { opacity: 0; } }
-.sheet { position: relative; width: min(860px, 100%); max-height: 100%; background: var(--bg2); border: 1px solid var(--line); border-radius: 28px; display: flex; flex-direction: column; overflow: hidden; box-shadow: var(--shadow); animation: rise 0.25s cubic-bezier(0.2, 0.9, 0.3, 1.1); }
-.sheet-narrow { width: min(640px, 100%); }
+.sheet { position: relative; width: 100%; max-width: 860px; max-height: 100%; background: var(--bg2); border: 1px solid var(--line); border-radius: 28px; display: flex; flex-direction: column; overflow: hidden; box-shadow: var(--shadow); animation: rise 0.25s cubic-bezier(0.2, 0.9, 0.3, 1.1); }
+.sheet-narrow { width: 100%; max-width: 640px; }
 @keyframes rise { from { transform: translateY(30px) scale(0.98); opacity: 0; } }
 .sheet-close { position: absolute; top: 14px; right: 14px; z-index: 2; width: 52px; height: 52px; border-radius: 50%; background: rgba(0, 0, 0, 0.55); display: grid; place-items: center; color: #fff; }
 .sheet-hero { display: flex; gap: 20px; align-items: center; padding: 22px 80px 18px 22px; border-bottom: 1px solid var(--line); }
@@ -224,11 +225,11 @@ img { -webkit-user-drag: none; }
 .checkout-actions, .dialog-actions { display: flex; gap: 12px; }
 .checkout-actions .btn-primary, .dialog-actions .btn-primary { flex: 1.6; }
 .checkout-actions .btn-ghost, .dialog-actions .btn-ghost { flex: 1; }
-.dialog, .pinpad { width: min(560px, 100%); background: var(--bg2); border: 1px solid var(--line); border-radius: 28px; padding: 30px; text-align: center; box-shadow: var(--shadow); animation: rise 0.25s ease; }
+.dialog, .pinpad { width: 100%; max-width: 560px; background: var(--bg2); border: 1px solid var(--line); border-radius: 28px; padding: 30px; text-align: center; box-shadow: var(--shadow); animation: rise 0.25s ease; }
 .dialog p { color: var(--muted); font-size: 18px; margin: 10px 0 24px; }
 
 /* ---------- Confirmation ---------- */
-.done { justify-content: safe center; overflow-y: auto; }
+.done { overflow-y: auto; }
 .done > *:not(.welcome-glow) { position: relative; flex-shrink: 0; }
 .done-check { width: 104px; height: 104px; border-radius: 50%; background: var(--ok); display: grid; place-items: center; color: #fff; box-shadow: 0 0 0 14px rgba(63, 179, 127, 0.15); animation: pulse 1.2s ease; }
 @keyframes pulse { 0% { transform: scale(0.4); opacity: 0; } 60% { transform: scale(1.1); } }
@@ -254,7 +255,7 @@ img { -webkit-user-drag: none; }
 .pin-keys .pin-cancel { font-size: 15px; color: var(--muted); }
 
 /* ---------- Tiroir panier (portrait) ---------- */
-.drawer-backdrop { position: fixed; inset: 0; z-index: 40; background: rgba(0, 0, 0, 0.6); display: flex; justify-content: flex-end; flex-direction: column; animation: fade 0.18s; }
+.drawer-backdrop { position: fixed; top: 0; right: 0; bottom: 0; left: 0; z-index: 40; background: rgba(0, 0, 0, 0.6); display: flex; justify-content: flex-end; flex-direction: column; animation: fade 0.18s; }
 .drawer { height: 82%; background: var(--bg2); border-radius: 28px 28px 0 0; overflow: hidden; animation: rise 0.25s ease; }
 
 @media (max-width: 1050px), (orientation: portrait) {
@@ -282,7 +283,7 @@ img { -webkit-user-drag: none; }
   .sheet-hero h2 { font-size: 34px; }
   .k-type button { padding: 0 10px; font-size: 14px; }
   .k-back { font-size: 0; }
-  .type-card { min-width: 0; width: 42vw; }
+  .type-card { min-width: 0; width: 42vw; height: 38vw; }
   .type-label { font-size: 32px; }
 }
 
@@ -358,9 +359,9 @@ textarea.input { height: auto; padding: 10px 14px; resize: vertical; }
 .emoji-btn { font-size: 26px; width: 46px; height: 46px; border-radius: 12px; background: var(--panel2); }
 
 /* Modales admin */
-.a-modal-backdrop { position: fixed; inset: 0; z-index: 60; background: rgba(0, 0, 0, 0.65); display: flex; align-items: center; justify-content: center; padding: 20px; animation: fade 0.15s; }
-.a-modal { width: min(560px, 100%); max-height: 100%; background: var(--bg2); border: 1px solid var(--line); border-radius: 22px; display: flex; flex-direction: column; box-shadow: var(--shadow); animation: rise 0.2s ease; }
-.a-modal.wide { width: min(1000px, 100%); }
+.a-modal-backdrop { position: fixed; top: 0; right: 0; bottom: 0; left: 0; z-index: 60; background: rgba(0, 0, 0, 0.65); display: flex; align-items: center; justify-content: center; padding: 20px; animation: fade 0.15s; }
+.a-modal { width: 100%; max-width: 560px; max-height: 100%; background: var(--bg2); border: 1px solid var(--line); border-radius: 22px; display: flex; flex-direction: column; box-shadow: var(--shadow); animation: rise 0.2s ease; }
+.a-modal.wide { width: 100%; max-width: 1000px; }
 .a-modal-head { display: flex; align-items: center; justify-content: space-between; padding: 16px 20px; border-bottom: 1px solid var(--line); }
 .a-modal-head h3 { margin: 0; font-size: 20px; }
 .a-modal-body { padding: 18px 20px; overflow-y: auto; }
@@ -473,4 +474,25 @@ textarea.input { height: auto; padding: 10px 14px; resize: vertical; }
 .delete-fab.in-admin { left: auto; right: 18px; }
 @media (max-width: 1050px), (orientation: portrait) {
   .delete-fab:not(.in-admin) { bottom: 104px; }
+}
+
+/* Petites tablettes (ex. Logicom 1024×600) : tout tient à l'écran */
+@media (max-height: 720px) {
+  .welcome, .done { padding: 14px 16px; overflow-y: auto; }
+  .welcome-logo { width: 92px; height: 92px; border-radius: 22px; }
+  .welcome-title { font-size: 60px; margin: 10px 0 4px; }
+  .welcome-tag { font-size: 13px; }
+  .welcome-cta { margin: 10px 0 16px; font-size: 17px; }
+  .type-card { width: 250px; min-width: 0; height: 180px; gap: 6px; }
+  .type-card svg { width: 46px; height: 46px; margin-bottom: 2px; }
+  .type-label { font-size: 34px; }
+  .done-check { width: 60px; height: 60px; box-shadow: 0 0 0 8px rgba(63, 179, 127, 0.15); }
+  .done-check svg { width: 34px; height: 34px; }
+  .done h1 { font-size: 42px; margin-top: 10px; }
+  .done-sub { font-size: 16px; margin-top: 4px; }
+  .done-number { font-size: 112px; }
+  .done-pay { font-size: 18px; margin: 2px 0; }
+  .done-print { margin: 10px 0 12px; }
+  .done-footer { margin-top: 8px; }
+  .k-main { padding-bottom: 170px; }
 }

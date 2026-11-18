@@ -3,7 +3,7 @@
 import { Capacitor } from "@capacitor/core";
 import { Preferences } from "@capacitor/preferences";
 import { createContext, useCallback, useContext, useEffect, useRef, useState } from "react";
-import { defaultData, DEFAULT_SETTINGS, migrateMenu, migrateMenuV3, migrateMenuV4, migrateMenuV5 } from "./defaultData.js";
+import { clone, defaultData, DEFAULT_SETTINGS, migrateMenu, migrateMenuV3, migrateMenuV4, migrateMenuV5 } from "./defaultData.js";
 
 const DATA_KEY = "odelices.data.v1";
 const ORDERS_KEY = "odelices.orders.v1";
@@ -92,7 +92,7 @@ export function StoreProvider({ children }) {
   // update(draft => { ...mutations... })
   const update = useCallback(
     (fn) => {
-      const next = structuredClone(latest.current);
+      const next = clone(latest.current);
       const ret = fn(next);
       const d = ret || next;
       latest.current = d;

@@ -1,6 +1,7 @@
 import { useState } from "react";
 import { Copy, Eye, EyeOff, ImagePlus, Pencil, Plus, Star, Trash2, X } from "lucide-react";
 import { useStore } from "../lib/store.jsx";
+import { clone } from "../lib/defaultData.js";
 import { fromPrice, money, productSizes } from "../lib/pricing.js";
 import { ProductImage } from "../kiosk/ProductImage.jsx";
 import { Field, Modal, MoveButtons, Num, Seg, Text, Toggle, move, readImage, uid } from "./ui.jsx";
@@ -126,7 +127,7 @@ export default function MenuTab() {
               {list.map((p, i) => (
                 <li key={p.id} className={`prod-item ${!p.available ? "out" : ""} ${p.hidden ? "muted" : ""}`}>
                   <ProductImage product={p} className="prod-thumb" icon={cat.icon} />
-                  <div className="prod-main" onClick={() => setEditProduct(structuredClone(p))}>
+                  <div className="prod-main" onClick={() => setEditProduct(clone(p))}>
                     <strong>{p.name}</strong>
                     <span>
                       {productSizes(p).length > 1 ? `${productSizes(p).length} formats · dès ` : ""}
@@ -141,12 +142,12 @@ export default function MenuTab() {
                     <button className="icon-btn" onClick={() => setProduct(p.id, { hidden: !p.hidden })} aria-label="Masquer">
                       {p.hidden ? <EyeOff size={18} /> : <Eye size={18} />}
                     </button>
-                    <button className="icon-btn" onClick={() => setEditProduct(structuredClone(p))} aria-label="Modifier">
+                    <button className="icon-btn" onClick={() => setEditProduct(clone(p))} aria-label="Modifier">
                       <Pencil size={18} />
                     </button>
                     <button
                       className="icon-btn"
-                      onClick={() => setEditProduct({ ...structuredClone(p), id: uid("p"), name: p.name + " (copie)", _new: true })}
+                      onClick={() => setEditProduct({ ...clone(p), id: uid("p"), name: p.name + " (copie)", _new: true })}
                       aria-label="Dupliquer"
                     >
                       <Copy size={18} />
