@@ -61,9 +61,20 @@ export default function SettingsTab({ toast }) {
           <Lock size={18} /> Sécurité
         </h3>
         <p className="field-hint">
-          L'espace gérant s'ouvre par un <b>appui long (2 secondes) sur le logo</b>, puis le code PIN.
+          L'espace gérant s'ouvre par un <b>appui long (2 secondes) sur le logo</b>
+          {s.pinEnabled !== false ? ", puis le code PIN." : ", sans code."}
         </p>
-        <div className="form-grid">
+        <Toggle
+          checked={s.pinEnabled !== false}
+          onChange={(v) => {
+            set({ pinEnabled: v });
+            toast(v ? "Code PIN activé" : "Code PIN désactivé : l'espace gérant s'ouvre sans code");
+          }}
+          label="Demander le code PIN pour ouvrir l'espace gérant"
+        />
+        {s.pinEnabled !== false && (
+        <>
+        <div className="form-grid" style={{ marginTop: 12 }}>
           <Field label="Nouveau code PIN (4 à 6 chiffres)">
             <input className="input" type="password" inputMode="numeric" value={pin.a} onChange={(e) => setPin({ ...pin, a: e.target.value.replace(/\D/g, "").slice(0, 6) })} />
           </Field>
@@ -82,6 +93,8 @@ export default function SettingsTab({ toast }) {
         >
           Changer le code
         </button>
+        </>
+        )}
         <hr />
         <Toggle
           checked={kiosk}

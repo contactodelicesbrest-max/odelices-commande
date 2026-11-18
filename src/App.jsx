@@ -20,7 +20,7 @@ function Shell() {
     );
   return (
     <>
-      <Kiosk onAdmin={() => setMode("pin")} />
+      <Kiosk onAdmin={() => setMode(data.settings.pinEnabled === false ? "admin" : "pin")} />
       {mode === "pin" && <PinPad pin={data.settings.adminPin} onOk={toAdmin} onCancel={toKiosk} />}
       {del}
     </>

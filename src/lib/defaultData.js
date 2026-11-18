@@ -295,6 +295,7 @@ export const DEFAULT_SETTINGS = {
   phone: "",
   ticketFooter: "Merci et à bientôt !",
   adminPin: "1234",
+  pinEnabled: true, // false : l'espace gérant s'ouvre sans code
   orderTypes: { surPlace: true, emporter: true },
   askName: true,
   idleSeconds: 90,
