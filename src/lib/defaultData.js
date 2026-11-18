@@ -88,7 +88,8 @@ export const drinkSizes = (price, extra) => [
 const TACOS_BOISSON = () => link("avec-boisson", { label: "Boisson", max: 1, extraPrice: 1.5 });
 const AVEC_BOISSON_GROUP = () => GROUPS.find((g) => g.id === "avec-boisson");
 const MEAT_1 = (g = "viandes") => link(g, { label: "Viande", min: 1, max: 1 });
-const MEAT_SUPP = (g = "viandes") => link(g, { label: "Viande supplémentaire (+3,00 €)", extraPrice: 3, repeat: true });
+// Viande supplémentaire : 3,00 € quelle que soit la viande (Tenders compris) → fixedPrice
+const MEAT_SUPP = (g = "viandes") => link(g, { label: "Viande supplémentaire (+3,00 €)", extraPrice: 3, repeat: true, fixedPrice: true });
 const sz = (label, price) => ({ id: slug(label), label, price });
 
 const CATEGORIES = [
@@ -404,6 +405,14 @@ export function migrateMenuV7(menu) {
   return menu;
 }
 
+// Version 7 → 8 : viande supplémentaire à 3,00 € pour toutes les viandes (Tenders : 3 € et non 4 €)
+export function migrateMenuV8(menu) {
+  for (const p of menu.products)
+    for (const l of p.links || [])
+      if (/^viande suppl/i.test(l.label || "") && Number(l.extraPrice) === 3) l.fixedPrice = true;
+  return menu;
+}
+
 export function defaultMenu() {
   return {
     categories: CATEGORIES.map((c) => ({ ...c, hidden: false })),
@@ -415,7 +424,7 @@ export function defaultMenu() {
 export function defaultData() {
   return {
     version: 1,
-    menuVersion: 7,
+    menuVersion: 8,
     menu: defaultMenu(),
     settings: JSON.parse(JSON.stringify(DEFAULT_SETTINGS)),
     counter: { day: "", n: 0 },

@@ -439,6 +439,7 @@ function ProductEditor({ initial, categories, groups, onClose, onSave }) {
                 </Field>
                 <Field label="Quantités">
                   <Toggle checked={l.repeat} onChange={(v) => setLink(i, { repeat: v })} label="Plusieurs fois la même" />
+                  <Toggle checked={!!l.fixedPrice} onChange={(v) => setLink(i, { fixedPrice: v })} label="Même prix pour toutes (ignorer le prix des options)" />
                 </Field>
               </div>
               {hasSizes && (

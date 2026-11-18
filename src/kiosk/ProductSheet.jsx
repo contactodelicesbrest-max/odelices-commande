@@ -163,7 +163,7 @@ export default function ProductSheet({ icon, product, groupsById, initial, onClo
             const addPrice = (o) => {
               const q = picked[o.id] || 0;
               const before = radio ? 0 : link.repeat ? count : count - (q ? 1 : 0);
-              return (Number(o.price) || 0) + (before >= free ? extra : 0);
+              return (link.fixedPrice ? 0 : Number(o.price) || 0) + (before >= free ? extra : 0);
             };
             return (
               <section

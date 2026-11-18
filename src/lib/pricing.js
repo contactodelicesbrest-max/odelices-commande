@@ -47,7 +47,8 @@ export function computeLine(product, sizeId, sel, groupsById) {
     for (const o of group.options) {
       const q = picked[o.id] || 0;
       if (!q) continue;
-      optTotal += (Number(o.price) || 0) * q;
+      // prix fixe : seul le surcoût du choix compte (ex. viande supplémentaire à 3 €, Tenders compris)
+      if (!link.fixedPrice) optTotal += (Number(o.price) || 0) * q;
       items.push({ name: o.name, qty: q });
     }
     const extra = (Number(link.extraPrice) || 0) * Math.max(0, count - (Number(link.free) || 0));
