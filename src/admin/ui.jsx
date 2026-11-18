@@ -93,7 +93,7 @@ export function TicketPreview({ segs, width = 32 }) {
     <div className="ticket-preview" style={{ "--cols": width }}>
       {previewLines(segs, width).map((l, i) => (
         <div key={i} className={`tp-line ${l.bold ? "b" : ""} tp-s${l.size}`}>
-          {l.text || " "}
+          {l.text ? l.runs.map((r, k) => (r.inv ? <span key={k} className="tp-inv">{r.text}</span> : r.text)) : " "}
         </div>
       ))}
     </div>

@@ -443,6 +443,7 @@ textarea.input { height: auto; padding: 10px 14px; resize: vertical; }
 .ticket-preview { background: #fbf8f2; color: #111; border-radius: 6px; padding: 16px 12px 26px; font-family: "Courier New", ui-monospace, monospace; font-size: 12px; line-height: 1.35; white-space: pre; overflow-x: auto; box-shadow: var(--shadow);
   -webkit-mask: linear-gradient(#000 0 0) top/100% calc(100% - 10px) no-repeat, radial-gradient(circle 6px at 8px 100%, transparent 98%, #000) bottom/16px 11px repeat-x; }
 .tp-line.b { font-weight: 800; }
+.tp-inv { background: #111; color: #fbf8f2; font-weight: 800; }
 .tp-s2 { font-size: 24px; line-height: 1.15; font-weight: 800; }
 .tp-stall { transform: scaleY(1.6); transform-origin: top; margin-bottom: 0.4em; }
 

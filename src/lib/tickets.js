@@ -3,7 +3,8 @@
 import { money, vatBreakdown } from "./pricing.js";
 
 // ---------- Mise en page (segments) ----------
-// seg = { text, bold, size: 1|2 (double largeur+hauteur)|"tall" (double hauteur), align: "left"|"center"|"right" }
+// seg = { text, bold, size: 1|2 (double largeur+hauteur)|"tall" (double hauteur), align: "left"|"center"|"right",
+//         mark: [début, fin] → partie du texte imprimée en blanc sur fond noir (mot-clé : SAUCES, SANS…) }
 
 function wrap(text, cols) {
   const out = [];
@@ -29,6 +30,12 @@ function lineTitle(it) {
   return `${it.qty} x ${it.name}${it.sizeLabel ? ` (${it.sizeLabel})` : ""}`;
 }
 
+// Ligne de détail cuisine : mot-clé en blanc sur noir, puis le détail en gras
+function keyLine(label, value) {
+  const key = " " + label.trim().toUpperCase() + " ";
+  return { text: `  ${key} ${value}`, bold: true, size: "tall", mark: [2, 2 + key.length] };
+}
+
 function choiceText(c) {
   return c.items.map((i) => (i.qty > 1 ? `${i.name} x${i.qty}` : i.name)).join(", ");
 }
@@ -43,9 +50,9 @@ export function kitchenTicket(order, s) {
   segs.push(sep("="));
   for (const it of order.items) {
     segs.push({ text: lineTitle(it), bold: true, size: "tall" });
-    if (it.removed?.length) segs.push({ text: `  SANS : ${it.removed.join(", ")}`, bold: true, size: "tall" });
-    for (const c of it.choices || []) segs.push({ text: `  ${c.label.replace(/\s*\([^)]*€\)/g, "")} : ${choiceText(c)}`, size: "tall" });
-    if (it.note) segs.push({ text: `  NOTE : ${it.note}`, bold: true });
+    if (it.removed?.length) segs.push(keyLine("SANS", it.removed.join(", ")));
+    for (const c of it.choices || []) segs.push(keyLine(c.label.replace(/\s*\([^)]*€\)/g, ""), choiceText(c)));
+    if (it.note) segs.push(keyLine("NOTE", it.note));
     segs.push(sep());
   }
   const count = order.items.reduce((a, b) => a + b.qty, 0);
@@ -144,7 +151,7 @@ function layout(segs, width) {
       });
       continue;
     }
-    for (const l of wrap(seg.text, c)) lines.push({ ...seg, text: l });
+    wrap(seg.text, c).forEach((l, i) => lines.push({ ...seg, text: l, mark: i === 0 ? seg.mark : null }));
   }
   return lines;
 }
@@ -155,7 +162,15 @@ export function previewLines(segs, width = 32) {
     let t = l.text;
     if (l.align === "center") t = " ".repeat(Math.max(0, Math.floor((c - t.length) / 2))) + t;
     if (l.align === "right") t = " ".repeat(Math.max(0, c - t.length)) + t;
-    return { text: t, bold: !!l.bold, size: l.size || 1 };
+    const shift = t.length - l.text.length;
+    const runs = l.mark
+      ? [
+          { text: t.slice(0, l.mark[0] + shift), inv: false },
+          { text: t.slice(l.mark[0] + shift, l.mark[1] + shift), inv: true },
+          { text: t.slice(l.mark[1] + shift), inv: false },
+        ]
+      : [{ text: t, inv: false }];
+    return { text: t, runs, bold: !!l.bold, size: l.size || 1 };
   });
 }
 
@@ -203,13 +218,21 @@ export function encodeEscPos(segs, cfg) {
   const ESC = 0x1b, GS = 0x1d;
   b.push(ESC, 0x40); // init
   if (accents) b.push(ESC, 0x74, 19); // page de code CP858
+  if (cfg.dark !== false) b.push(ESC, 0x47, 1); // double frappe : texte plus foncé
   for (const l of layout(segs, width)) {
     b.push(ESC, 0x61, l.align === "center" ? 1 : l.align === "right" ? 2 : 0);
     b.push(ESC, 0x45, l.bold ? 1 : 0);
     b.push(GS, 0x21, l.size === 2 ? 0x11 : l.size === "tall" ? 0x01 : 0x00);
-    b.push(...encodeText(l.text, accents), 0x0a);
+    if (l.mark) {
+      // mot-clé en blanc sur fond noir (GS B 1), puis retour au normal
+      b.push(...encodeText(l.text.slice(0, l.mark[0]), accents));
+      b.push(GS, 0x42, 1, ESC, 0x45, 1, ...encodeText(l.text.slice(l.mark[0], l.mark[1]), accents), GS, 0x42, 0);
+      b.push(ESC, 0x45, l.bold ? 1 : 0, ...encodeText(l.text.slice(l.mark[1]), accents), 0x0a);
+    } else {
+      b.push(...encodeText(l.text, accents), 0x0a);
+    }
   }
-  b.push(GS, 0x21, 0, ESC, 0x45, 0, ESC, 0x61, 0);
+  b.push(GS, 0x21, 0, ESC, 0x45, 0, GS, 0x42, 0, ESC, 0x47, 0, ESC, 0x61, 0);
   b.push(ESC, 0x64, 4); // avance papier
   if (cfg.cut) b.push(GS, 0x56, 66, 0); // coupe partielle (ignorée si pas de massicot)
   return new Uint8Array(b);

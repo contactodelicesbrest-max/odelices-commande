@@ -300,8 +300,8 @@ export const DEFAULT_SETTINGS = {
   hideUnavailable: false,
   showPrices: true,
   printers: {
-    kitchen: { type: "bluetooth", name: "", address: "", host: "", port: 9100, width: 48, copies: 1, accents: false, cut: true },
-    counter: { enabled: false, type: "bluetooth", name: "", address: "", host: "", port: 9100, width: 48, copies: 1, accents: false, cut: true, vat: true },
+    kitchen: { type: "bluetooth", name: "", address: "", host: "", port: 9100, width: 48, copies: 1, accents: false, cut: true, dark: true },
+    counter: { enabled: false, type: "bluetooth", name: "", address: "", host: "", port: 9100, width: 48, copies: 1, accents: false, cut: true, vat: true, dark: true },
   },
   // Si pas d'imprimante caisse : imprimer aussi un ticket client (avec prix) sur l'imprimante cuisine
   clientTicketOnKitchen: true,

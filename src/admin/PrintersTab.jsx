@@ -13,7 +13,7 @@ const SAMPLE = {
   total: 22.5,
   items: [
     { qty: 1, name: "Tacos", sizeLabel: "L · 2 viandes", removed: [], choices: [{ label: "Viandes", items: [{ name: "Kebab", qty: 1 }, { name: "Tenders", qty: 1 }] }, { label: "Sauces", items: [{ name: "Algérienne", qty: 1 }] }], totalPrice: 12.5, vatRate: 10 },
-    { qty: 1, name: "Döner Kebab", sizeLabel: "Avec boisson", removed: ["Oignons"], choices: [{ label: "Viande", items: [{ name: "Kebab", qty: 1 }] }, { label: "Pain ou galette", items: [{ name: "Galette", qty: 1 }] }, { label: "Boisson", items: [{ name: "Coca-Cola", qty: 1 }] }], totalPrice: 10, vatRate: 10 },
+    { qty: 1, name: "Döner Kebab", sizeLabel: "Avec boisson", removed: ["Oignons"], choices: [{ label: "Viande", items: [{ name: "Kebab", qty: 1 }] }, { label: "Pain ou galette", items: [{ name: "Galette", qty: 1 }] }, { label: "Sauces", items: [{ name: "Blanche (maison)", qty: 1 }] }, { label: "Suppléments", items: [{ name: "Emmental", qty: 1 }] }], totalPrice: 10, vatRate: 10 },
   ],
 };
 
@@ -118,6 +118,7 @@ export default function PrintersTab({ toast }) {
                 <div className="toggle-row">
                   <Toggle checked={cfg.accents} onChange={(v) => set({ accents: v })} label="Imprimer les accents (é, à, €)" />
                   <Toggle checked={cfg.cut} onChange={(v) => set({ cut: v })} label="Coupe automatique" />
+                  <Toggle checked={cfg.dark !== false} onChange={(v) => set({ dark: v })} label="Impression plus foncée" />
                   {key === "counter" && <Toggle checked={cfg.vat} onChange={(v) => set({ vat: v })} label="Détail TVA" />}
                 </div>
                 <p className="field-hint">Si les accents s'impriment mal (caractères bizarres), désactivez l'option : le texte sera imprimé sans accents.</p>
