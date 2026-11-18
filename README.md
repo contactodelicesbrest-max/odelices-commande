@@ -14,7 +14,7 @@ L'application fonctionne **sans internet** : le menu et les commandes sont enreg
 
 Compatible **Android 5.1 et plus récent** (tablettes Logicom et autres modèles d'entrée de gamme compris). Sur une tablette ancienne, mettez d'abord à jour **Android System WebView** et **Google Chrome** dans le Play Store : si le moteur d'affichage est trop vieux, l'appli affiche un message qui l'explique.
 
-1. Copiez le fichier `ODelices-Borne-v2.1.1.apk` sur la tablette (câble USB, Google Drive, e-mail…).
+1. Copiez le fichier `ODelices-Borne-v2.1.2.apk` sur la tablette (câble USB, Google Drive, e-mail…).
 2. Ouvrez-le depuis la tablette. Si Android le demande, autorisez « Installer des applications inconnues » pour l'application qui ouvre le fichier (Fichiers, Drive…).
 3. Lancez **O'Délices Borne**.
 

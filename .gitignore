@@ -7,3 +7,6 @@ dist
 *.jks
 android/keystore.properties
 *.apk
+
+# Projet Android Studio autonome (livré à part)
+odelices-borne-android-studio.zip
