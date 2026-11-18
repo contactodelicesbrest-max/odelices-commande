@@ -1,0 +1,158 @@
+/*
+ * Styles de secours pour les très anciens moteurs web
+ * (tablette Android 5.1 dont le moteur n'a jamais été mis à jour).
+ *  - html.old-css    : pas de CSS Grid → mises en page en flexbox / positions fixes
+ *  - html.no-flexgap : pas de "gap" dans les blocs flex → marges
+ * Sur une tablette récente, aucune de ces règles ne s'applique.
+ */
+
+/* ---------- Centrage (remplace display:grid + place-items) ---------- */
+.old-css .boot,
+.old-css .img-ph,
+.old-css .p-plus,
+.old-css .qty button,
+.old-css .sheet-close,
+.old-css .done-check,
+.old-css .pin-keys button,
+.old-css .k-cart-count,
+.old-css .cart-close,
+.old-css .tag button {
+  display: -webkit-flex; display: flex;
+  -webkit-align-items: center; align-items: center;
+  -webkit-justify-content: center; justify-content: center;
+}
+.old-css .icon-btn { display: -webkit-inline-flex; display: inline-flex; -webkit-align-items: center; align-items: center; -webkit-justify-content: center; justify-content: center; vertical-align: middle; }
+.old-css .img-ph { background: #6b2a17; }
+
+/* ---------- Borne : en-tête, catégories, produits, panier ---------- */
+.old-css .kiosk { display: block; position: relative; height: 100%; }
+.old-css .k-header { position: absolute; top: 0; left: 0; right: 0; height: 76px; }
+.old-css .k-cats { position: absolute; top: 76px; bottom: 0; left: 0; width: 150px; }
+.old-css .k-main { position: absolute; top: 76px; bottom: 0; left: 150px; right: 380px; }
+.old-css .k-cart-side { position: absolute; top: 76px; bottom: 0; right: 0; width: 380px; }
+@media (max-width: 1050px), (orientation: portrait) {
+  .old-css .k-cats { bottom: auto; width: auto; right: 0; height: 76px; }
+  .old-css .k-main { top: 152px; left: 0; right: 0; }
+  .old-css .k-cart-side { display: none; }
+}
+
+.old-css .p-grid { display: -webkit-flex; display: flex; -webkit-flex-wrap: wrap; flex-wrap: wrap; margin: 12px -8px 0; }
+.old-css .p-grid > * { width: calc(33.333% - 16px); margin: 8px; }
+@media (min-width: 1400px) { .old-css .p-grid > * { width: calc(25% - 16px); } }
+@media (max-width: 700px) { .old-css .p-grid > * { width: calc(50% - 12px); margin: 6px; } }
+
+.old-css .size-grid { display: -webkit-flex; display: flex; -webkit-flex-wrap: wrap; flex-wrap: wrap; margin: -6px; }
+.old-css .size-grid > * { -webkit-flex: 1 1 180px; flex: 1 1 180px; margin: 6px; }
+.old-css .stepper-list { display: -webkit-flex; display: flex; -webkit-flex-wrap: wrap; flex-wrap: wrap; margin: -5px; }
+.old-css .stepper-list > * { -webkit-flex: 1 1 280px; flex: 1 1 280px; margin: 5px; }
+.old-css .pin-keys { display: -webkit-flex; display: flex; -webkit-flex-wrap: wrap; flex-wrap: wrap; margin: -6px; }
+.old-css .pin-keys > * { width: calc(33.333% - 12px); margin: 6px; }
+
+/* ---------- Espace gérant ---------- */
+.old-css .admin { display: -webkit-flex; display: flex; }
+.old-css .a-side { width: 240px; -webkit-flex: none; flex: none; }
+.old-css .a-main { -webkit-flex: 1; flex: 1; }
+@media (max-width: 1100px) { .old-css .a-side { width: 76px; } }
+.old-css .menu-tab,
+.old-css .orders-grid,
+.old-css .printers-tab,
+.old-css .order-detail { display: block; }
+.old-css .menu-tab > *,
+.old-css .orders-grid > *,
+.old-css .printers-tab > *,
+.old-css .order-detail > * { margin-bottom: 16px; }
+.old-css .form-grid,
+.old-css .link-rules { display: -webkit-flex; display: flex; -webkit-flex-wrap: wrap; flex-wrap: wrap; margin-right: -16px; }
+.old-css .form-grid > * { -webkit-flex: 1 1 220px; flex: 1 1 220px; margin-right: 16px; }
+.old-css .link-rules > * { -webkit-flex: 1 1 130px; flex: 1 1 130px; margin-right: 12px; }
+.old-css .row,
+.old-css .link-head,
+.old-css .bar-row { display: -webkit-flex; display: flex; -webkit-align-items: center; align-items: center; }
+.old-css .row > *,
+.old-css .link-head > * { margin-right: 10px; }
+.old-css .row > :first-child,
+.old-css .link-head > :first-child { -webkit-flex: 1; flex: 1; }
+.old-css .link-head > :nth-child(2) { -webkit-flex: 1; flex: 1; }
+.old-css .bar-name { -webkit-flex: 1; flex: 1; }
+.old-css .bar { width: 90px; margin: 0 10px; }
+.old-css .bar-val { width: 30px; }
+.old-css .kpis { display: -webkit-flex; display: flex; -webkit-flex-wrap: wrap; flex-wrap: wrap; margin: 0 -6px 16px; }
+.old-css .kpis > * { -webkit-flex: 1 1 160px; flex: 1 1 160px; margin: 6px; }
+.old-css .kpis > .kpi-main { -webkit-flex: 2 1 320px; flex: 2 1 320px; }
+
+/* ---------- Espacements (remplace "gap" des blocs flex) ---------- */
+.no-flexgap .chip-row > *,
+.no-flexgap .toggle-row > *,
+.no-flexgap .btn-row > *,
+.no-flexgap .emoji-row > *,
+.no-flexgap .row-actions > *,
+.no-flexgap .day-bar > *,
+.no-flexgap .a-modal-foot > *,
+.no-flexgap .col-head > * { margin: 0 10px 10px 0; }
+.no-flexgap .chip-row,
+.no-flexgap .toggle-row,
+.no-flexgap .btn-row,
+.no-flexgap .emoji-row { margin-bottom: -10px; }
+.no-flexgap .welcome-types > * { margin: 12px; }
+.no-flexgap .k-header > * + * { margin-left: 16px; }
+.no-flexgap .k-brand > * + *,
+.no-flexgap .a-brand > * + * { margin-left: 12px; }
+.no-flexgap .k-cats > * { margin-bottom: 8px; }
+.no-flexgap .k-cat > * + * { margin-top: 6px; }
+@media (max-width: 1050px), (orientation: portrait) {
+  .no-flexgap .k-cats > * { margin: 0 8px 0 0; }
+  .no-flexgap .k-cat > * + * { margin: 0 0 0 6px; }
+}
+.no-flexgap .p-info > * + * { margin-top: 4px; }
+.no-flexgap .cart-head > * + *,
+.no-flexgap .cart-line-top > * + *,
+.no-flexgap .sheet-hero > * + *,
+.no-flexgap .stepper-row > * + *,
+.no-flexgap .order-row > * + *,
+.no-flexgap .printer-head > * + * { margin-left: 12px; }
+.no-flexgap .sheet-footer > * + *,
+.no-flexgap .checkout-actions > * + *,
+.no-flexgap .dialog-actions > * + * { margin-left: 12px; }
+.no-flexgap .opt-section header > * + * { margin-left: 12px; }
+.no-flexgap .size-card > * + * { margin-top: 4px; }
+.no-flexgap .pin-dots > * + * { margin-left: 14px; }
+.no-flexgap .a-side nav > * { margin-bottom: 4px; }
+.no-flexgap .a-side > * + * { margin-top: 6px; }
+.no-flexgap .toggle-col > * { margin-bottom: 14px; }
+.no-flexgap .rows > * { margin-bottom: 8px; }
+.no-flexgap .field > * + * { margin-top: 6px; }
+.no-flexgap .bt-box > * { margin-bottom: 10px; }
+.no-flexgap .by-size > * + *,
+.no-flexgap .size-fields > * + * { margin-top: 6px; }
+.no-flexgap .by-size-row > * { margin-right: 10px; }
+.no-flexgap .type-card > * + * { margin-top: 8px; }
+.no-flexgap .kpi > * + * { margin-top: 4px; }
+/* icône + texte dans les boutons */
+.no-flexgap .btn-primary > * + *,
+.no-flexgap .btn-ghost > * + *,
+.no-flexgap .chip > * + *,
+.no-flexgap .k-back > * + *,
+.no-flexgap .a-side nav button > * + *,
+.no-flexgap .a-exit > * + *,
+.no-flexgap .delete-fab > * + *,
+.no-flexgap .badge > * + *,
+.no-flexgap .pill > * + *,
+.no-flexgap .tag > * + *,
+.no-flexgap .toggle > * + *,
+.no-flexgap .done-print > * + *,
+.no-flexgap .bt-current > * + *,
+.no-flexgap .btn-add > * + *,
+.no-flexgap .k-cart-bar-btn > * + *,
+.no-flexgap .card h3 > * + * { margin-left: 8px; }
+/* l'icône est suivie d'un simple texte : la marge va sur l'icône */
+.no-flexgap .btn-primary svg:first-child,
+.no-flexgap .btn-ghost svg:first-child,
+.no-flexgap .chip svg:first-child,
+.no-flexgap .badge svg,
+.no-flexgap .pill svg,
+.no-flexgap .delete-fab svg,
+.no-flexgap .k-back svg,
+.no-flexgap .done-print svg,
+.no-flexgap .bt-current svg,
+.no-flexgap .card h3 svg,
+.no-flexgap .k-pop-hint svg { margin-right: 6px; }

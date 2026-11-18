@@ -19,3 +19,13 @@
 # If you keep the line number information, uncomment this to
 # hide the original source file name.
 #-renamesourcefileattribute SourceFile
+
+# --- O'Délices Borne ---
+# Capacitor charge ses modules par leur nom : on les garde tels quels
+-keep class com.getcapacitor.** { *; }
+-keep class fr.odelices.borne.** { *; }
+-keepattributes *Annotation*, Signature, InnerClasses, EnclosingMethod
+-keepclassmembers class * {
+    @android.webkit.JavascriptInterface <methods>;
+}
+-dontwarn com.getcapacitor.**

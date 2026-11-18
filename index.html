@@ -10,17 +10,22 @@
   <body>
     <div id="root"></div>
     <script>
-      // Moteur web trop ancien (tablette jamais mise à jour) : on explique comment faire
+      // Ancien moteur web (tablette Android 5.1 jamais mise à jour) : styles de secours
       (function () {
-        var ok = window.CSS && CSS.supports && CSS.supports("display", "grid") && CSS.supports("--a", "0");
-        if (ok) return;
-        document.getElementById("root").innerHTML =
-          '<div style="font-family:sans-serif;background:#15110f;color:#f7f1e8;min-height:100vh;padding:40px;box-sizing:border-box;text-align:center">' +
-          '<h1 style="color:#e8452c">Mise à jour nécessaire</h1>' +
-          '<p style="font-size:20px;max-width:640px;margin:20px auto;line-height:1.5">Le moteur d\'affichage de cette tablette est trop ancien.<br><br>' +
-          'Ouvrez le <b>Play Store</b>, cherchez <b>« Android System WebView »</b> et touchez <b>Mettre à jour</b>.<br>' +
-          'Mettez aussi à jour <b>Google Chrome</b>.<br><br>Puis relancez l\'application.</p></div>';
-        window.__oldWebView = true;
+        var html = document.documentElement;
+        var sup = window.CSS && CSS.supports;
+        if (!(sup && CSS.supports("display", "grid"))) html.className += " old-css";
+        // l'espacement "gap" des blocs flex n'existe pas sur les vieux moteurs
+        var d = document.createElement("div");
+        d.style.display = "flex";
+        d.style.flexDirection = "column";
+        d.style.rowGap = "1px";
+        d.appendChild(document.createElement("div"));
+        d.appendChild(document.createElement("div"));
+        document.documentElement.appendChild(d);
+        var flexGap = d.scrollHeight === 1;
+        d.parentNode.removeChild(d);
+        if (!flexGap) html.className += " no-flexgap";
       })();
     </script>
     <script type="module" src="/src/main.jsx"></script>
