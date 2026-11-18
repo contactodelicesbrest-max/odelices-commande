@@ -49,7 +49,7 @@ const GROUPS = [
   {
     id: "supplements",
     name: "Suppléments",
-    options: [opt("Cheddar", 1), opt("Chèvre", 1.5), opt("Œuf", 1.5), opt("Oignons frits", 1)],
+    options: [opt("Cheddar", 1), opt("Chèvre", 1.5), opt("Œuf", 1.5), opt("Oignons frits", 1), opt("Galette de pomme de terre", 1.8), opt("Emmental", 1.5)],
   },
   { id: "pain", name: "Pain ou galette", options: [opt("Pain"), opt("Galette")] },
   { id: "avec-boisson", name: "Boisson (formule)", options: [{ id: "avec-boisson", name: "Avec boisson", price: 0, available: true }] },
@@ -124,6 +124,23 @@ const P = (categoryId, name, { drink, ...fields } = {}) => ({
 const BOUTEILLE_50 = () => P("boissons", "Bouteille 50cl", { id: "bouteille-50cl", price: 2.8 });
 
 // Produits ajoutés dans l'appli Comptoir (absents de l'ancien GitHub)
+// Mêmes options que le O'Délices Burger : sauces, suppléments, ingrédients, sans/avec boisson
+const CHICKEN_BURGER = () =>
+  P("burgers", "Chicken Burger", {
+    description: "Poulet, salade, tomates, oignons, cheddar + sauce au choix. Servi avec frites.",
+    price: 10, drink: 1.5,
+    ingredients: ["Salade", "Tomates", "Oignons", "Cheddar"],
+    links: [SAUCE_1_OFFERTE(), SUPPS()],
+  });
+const FISH_BURGER = () =>
+  P("burgers", "Fish Burger", {
+    description: "Poisson pané, salade, tomates, oignons, cheddar + sauce au choix. Servi avec frites.",
+    price: 10, drink: 1.5,
+    ingredients: ["Salade", "Tomates", "Oignons", "Cheddar"],
+    links: [SAUCE_1_OFFERTE(), SUPPS()],
+  });
+const NEW_SUPPLEMENTS = [opt("Galette de pomme de terre", 1.8), opt("Emmental", 1.5)];
+
 const ROSTIBURGER = () =>
   P("burgers", "Rostiburger", {
     description: "Servi avec frites, salade, tomates, oignons.",
@@ -189,6 +206,8 @@ const PRODUCTS = [
     links: [SAUCE_1_OFFERTE(), SUPPS()],
   }),
   ROSTIBURGER(),
+  CHICKEN_BURGER(),
+  FISH_BURGER(),
 
   P("sandwichs", "Döner Kebab", {
     id: "doner",
@@ -358,6 +377,21 @@ export function migrateMenuV5(menu) {
   return menu;
 }
 
+// Version 5 → 6 : suppléments galette de pomme de terre / emmental, Chicken et Fish Burger
+export function migrateMenuV6(menu) {
+  const supp = menu.groups.find((g) => g.id === "supplements");
+  if (supp) for (const o of NEW_SUPPLEMENTS) if (!supp.options.some((x) => x.id === o.id)) supp.options.push({ ...o });
+  let after = menu.products.some((p) => p.id === "rostiburger") ? "rostiburger" : "odelices-burger";
+  for (const make of [CHICKEN_BURGER, FISH_BURGER]) {
+    const p = make();
+    if (menu.products.some((x) => x.id === p.id) || !menu.categories.some((c) => c.id === "burgers")) continue;
+    const i = menu.products.findIndex((x) => x.id === after);
+    menu.products.splice(i >= 0 ? i + 1 : menu.products.length, 0, p);
+    after = p.id;
+  }
+  return menu;
+}
+
 export function defaultMenu() {
   return {
     categories: CATEGORIES.map((c) => ({ ...c, hidden: false })),
@@ -369,7 +403,7 @@ export function defaultMenu() {
 export function defaultData() {
   return {
     version: 1,
-    menuVersion: 5,
+    menuVersion: 6,
     menu: defaultMenu(),
     settings: JSON.parse(JSON.stringify(DEFAULT_SETTINGS)),
     counter: { day: "", n: 0 },
