@@ -145,8 +145,8 @@ export default function OrdersTab({ toast }) {
         <button className="btn-ghost btn-sm" onClick={exportCsv}>
           <FileDown size={16} /> Excel (CSV)
         </button>
-        <button className="btn-ghost btn-sm danger" onClick={() => setClearing(true)} disabled={!orders.some((o) => o.paid)}>
-          <Trash2 size={16} /> Supprimer les commandes payées
+        <button className="btn-ghost btn-sm danger" onClick={() => setClearing(true)} disabled={!orders.length}>
+          <Trash2 size={16} /> Supprimer l'historique des commandes
         </button>
       </div>
 
@@ -221,7 +221,7 @@ export default function OrdersTab({ toast }) {
       )}
       {clearing && (
         <Modal
-          title="Supprimer les commandes payées ?"
+          title="Supprimer l'historique des commandes ?"
           onClose={() => setClearing(false)}
           footer={
             <>
@@ -232,21 +232,19 @@ export default function OrdersTab({ toast }) {
               <button
                 className="btn-primary btn-danger"
                 onClick={() => {
-                  const n = deleteOrders((o) => o.paid);
+                  const n = deleteOrders(() => true);
                   setClearing(false);
-                  toast(`${n} commande${n > 1 ? "s" : ""} payée${n > 1 ? "s" : ""} supprimée${n > 1 ? "s" : ""}`);
+                  toast(`Historique supprimé (${n} commande${n > 1 ? "s" : ""})`);
                 }}
               >
-                <Trash2 size={16} /> Supprimer
+                <Trash2 size={16} /> Tout supprimer
               </button>
             </>
           }
         >
           <p>
-            <b>{orders.filter((o) => o.paid).length} commande{orders.filter((o) => o.paid).length > 1 ? "s" : ""} payée{orders.filter((o) => o.paid).length > 1 ? "s" : ""}</b> (tous les jours confondus) vont être effacées définitivement de
-            l'historique. Elles ne compteront plus dans le chiffre d'affaires ni dans les rapports.
+            <b>Toutes les commandes ({orders.length})</b>, tous les jours confondus, vont être effacées définitivement : le chiffre d'affaires et les rapports repartiront de zéro.
           </p>
-          <p>Les commandes pas encore encaissées et les commandes annulées sont conservées.</p>
           <p className="field-hint">Astuce : exportez d'abord le rapport en PDF ou Excel si vous voulez en garder une trace.</p>
         </Modal>
       )}
