@@ -1,0 +1,33 @@
+name: APK Pointage
+
+# Construit l'APK de l'appli de pointage à chaque modification (ou à la main depuis l'onglet « Actions »).
+# L'APK se télécharge dans l'onglet Actions > dernier run > « Artifacts ».
+on:
+  workflow_dispatch:
+  push:
+    paths:
+      - "src/pointage/**"
+      - "android/**"
+      - "package.json"
+      - "capacitor.config.json"
+
+jobs:
+  build:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 20
+      - uses: actions/setup-java@v4
+        with:
+          distribution: temurin
+          java-version: 17
+      - run: npm install
+      - run: npm run build:pointage
+      - run: npx cap sync android
+      - run: cd android && chmod +x gradlew && ./gradlew assembleDebug
+      - uses: actions/upload-artifact@v4
+        with:
+          name: ODelices-Pointage-apk
+          path: android/app/build/outputs/apk/debug/app-debug.apk

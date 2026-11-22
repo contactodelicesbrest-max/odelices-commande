@@ -1,0 +1,7 @@
+<?xml version='1.0' encoding='utf-8'?>
+<resources>
+    <string name="app_name">O\'Délices Pointage</string>
+    <string name="title_activity_main">O\'Délices Pointage</string>
+    <string name="package_name">fr.odelices.pointage</string>
+    <string name="custom_url_scheme">fr.odelices.pointage</string>
+</resources>

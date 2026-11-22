@@ -1,0 +1,6 @@
+{
+  "appId": "fr.odelices.pointage",
+  "appName": "O'Délices Pointage",
+  "webDir": "dist-pointage",
+  "android": { "allowMixedContent": false }
+}

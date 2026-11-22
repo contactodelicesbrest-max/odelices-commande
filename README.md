@@ -73,3 +73,42 @@ npm run dev
 ```
 
 Puis ouvre l'adresse affichée dans le terminal (généralement `http://localhost:5173`).
+
+---
+
+# Appli « O'Délices Pointage » (signature des heures + export compta)
+
+Appli séparée pour que chaque salarié **vérifie et signe ses heures chaque fin de semaine**. Le gérant exporte ensuite le mois pour le comptable (fiches de paie).
+
+## Utilisation
+
+**Salarié (fin de semaine)** : ouvrir l'appli → toucher son nom → vérifier les horaires (pré-remplis avec le planning), corriger si besoin → signer avec le doigt → cocher « Je certifie » → **Signer ma semaine**.
+
+**Gérant** (bouton ⚙ Gérant, code par défaut **1234**, à changer dans l'onglet *Salariés*) :
+- **Suivi** : qui a signé ou non, détail des heures, signature. Bouton « Déverrouiller » si un salarié doit corriger.
+- **Planning** : modifier les horaires prévus de chaque salarié.
+  - **→ Semaine suivante** : recopie les horaires de la semaine affichée sur la semaine d'après.
+  - **→ Tout le mois de …** : recopie les horaires de la semaine affichée sur **toutes les semaines du mois suivant** (mêmes horaires).
+  - **Importer un planning Excel** : même modèle que « Planning nouveau model » (un onglet par semaine, année en A1, n° de semaine en B2).
+- **Export compta** : choisir le mois →
+  - **Excel** : récap des heures par salarié et par semaine + total du mois (jour par jour, les semaines à cheval sur 2 mois sont coupées), détail de chaque jour, état des signatures.
+  - **PDF** : feuilles d'heures avec les signatures (preuve en cas de contrôle).
+  - Sur le téléphone, le menu de partage s'ouvre (Gmail, WhatsApp, Drive…) pour l'envoyer directement au comptable.
+- **Salariés** : ajouter / modifier / supprimer, code personnel facultatif (pour qu'un salarié ne puisse pas signer à la place d'un autre).
+
+Les données sont dans la même base Firebase que l'appli de commande (dossier `pointage`). Le planning de novembre 2026 (fichier Excel) est chargé automatiquement à la première ouverture.
+
+> ⚠️ Si la base Firebase a été créée en « mode test », les règles expirent au bout de 30 jours : pense à les prolonger dans la console Firebase (Realtime Database → Règles), sinon l'appli ne pourra plus lire/écrire.
+
+## Installer l'APK
+
+1. Copier `ODelices-Pointage.apk` sur le téléphone / la tablette (ou le télécharger : GitHub → onglet **Actions** → « APK Pointage » → dernier run → *Artifacts*).
+2. L'ouvrir ; Android demande d'autoriser « l'installation d'applis inconnues » pour cette source → autoriser → Installer.
+
+Sans APK : l'appli marche aussi dans le navigateur avec `https://odelices-commande.vercel.app/?vue=pointage`.
+
+## Reconstruire l'APK après une modification
+
+Automatique : à chaque modification poussée sur GitHub, le workflow « APK Pointage » reconstruit l'APK (onglet Actions).
+
+En local (Node + Java 17 + Android SDK) : `npm install` puis `npm run apk` → `android/app/build/outputs/apk/debug/app-debug.apk`.
