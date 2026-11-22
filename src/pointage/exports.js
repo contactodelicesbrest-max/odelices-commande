@@ -3,7 +3,7 @@ import { jsPDF } from "jspdf";
 import { Capacitor } from "@capacitor/core";
 import {
   JOURS, MOIS, addDays, parseIso, iso, fmtDateLong, isoWeek, normWeek,
-  dayMinutes, dayMinutesRaw, weekMinutes, toDecimal, ABSENCES, fmtH, mondayFromPlanning, mondaysOfMonth,
+  dayMinutes, dayMinutesRaw, weekMinutes, mergeWeek, toDecimal, ABSENCES, fmtH, mondayFromPlanning, mondaysOfMonth,
 } from "./time.js";
 import { analyseSemaine, cfgOf, contratOf, round2, TRANCHE_LABELS } from "./paie.js";
 
@@ -46,7 +46,7 @@ export async function saveFile(blob, filename) {
  * Pour chaque salarié et chaque jour du mois : heures signées (pointage)
  * ou, à défaut, heures prévues au planning (marquées « non signé »).
  */
-export function buildMonth({ year, month, employes, planning, pointages, config }) {
+export function buildMonth({ year, month, employes, planning, pointages, signatures, config }) {
   const cfg = cfgOf(config);
   const mondays = mondaysOfMonth(year, month);
   const rows = []; // détail par jour
@@ -56,6 +56,8 @@ export function buildMonth({ year, month, employes, planning, pointages, config 
   Object.entries(employes || {}).forEach(([id, e]) => {
     if (e.horsPaie) { horsPaie.push(e); return; }
     const paie = { net: 0, brut: 0, cout: 0, repas: 0, parts: {}, alertes: [] };
+    const sg = signatures?.[id] || null;
+    const signe = !!sg?.signature;
     let totalMois = 0;
     let totalPrevuMois = 0;
     const absJours = { CP: 0, MAL: 0, ABS: 0, FER: 0 };
@@ -64,8 +66,7 @@ export function buildMonth({ year, month, employes, planning, pointages, config 
     mondays.forEach((mon) => {
       const pt = pointages?.[mon]?.[id];
       const pl = normWeek(planning?.[mon]?.[id]?.days);
-      const reel = pt ? normWeek(pt.days) : null;
-      const signe = !!pt?.signature;
+      const reel = pt?.days ? mergeWeek(pl, pt.days) : null;
       let minSemaineDansMois = 0;
       const monDate = parseIso(mon);
       const an = analyseSemaine(reel || pl, e, cfg);
@@ -111,17 +112,13 @@ export function buildMonth({ year, month, employes, planning, pointages, config 
         mon,
         minutesSemaine: reel ? weekMinutes(reel) : weekMinutes(pl),
         minutesDansMois: minSemaineDansMois,
-        signe,
-        signeLe: pt?.signeLe || null,
-        commentaire: pt?.commentaire || "",
-        signature: pt?.signature || null,
         days: reel || pl,
         analyse: an,
         finDansMois,
       });
     });
     ["net", "brut", "cout"].forEach((k) => (paie[k] = round2(paie[k])));
-    recap.push({ id, employe: e, semaines, totalMois, totalPrevuMois, absJours, absMinutes, paie, contrat: contratOf(e), taux: semaines[0]?.analyse.taux });
+    recap.push({ id, employe: e, signe, sg, semaines, totalMois, totalPrevuMois, absJours, absMinutes, paie, contrat: contratOf(e), taux: semaines[0]?.analyse.taux });
   });
   return { mondays, rows, recap, horsPaie, cfg };
 }
@@ -156,7 +153,7 @@ export function excelBlob(data, { year, month }) {
     o["Net estimé (€)"] = r.paie.net;
     o["Brut estimé (€)"] = r.paie.brut;
     o["Coût employeur estimé (€)"] = r.paie.cout;
-    o["Semaines signées"] = `${r.semaines.filter((s) => s.signe).length}/${r.semaines.length}`;
+    o["Mois signé"] = r.signe ? `Oui (${new Date(r.sg.signeLe).toLocaleDateString("fr-FR")})` : "NON";
     o["Alertes"] = r.paie.alertes.join(" | ");
     return o;
   });
@@ -179,7 +176,6 @@ export function excelBlob(data, { year, month }) {
       Object.entries(TRANCHE_LABELS).forEach(([k, l]) => (o[l] = toDecimal(s.analyse.tot.parts[k] || 0)));
       o["Repas"] = s.analyse.tot.repas;
       o["Coût employeur (€)"] = s.analyse.tot.cout;
-      o["Signé"] = s.signe ? "Oui" : "Non";
       o["Alertes"] = s.analyse.alertes.join(" | ");
       sem.push(o);
     })
@@ -218,7 +214,7 @@ export function excelBlob(data, { year, month }) {
       o[`Jours ${a.label}`] = r.absJours[k] || 0;
       o[`Heures ${a.label}`] = toDecimal(r.absMinutes[k] || 0);
     });
-    o["Semaines signées"] = `${r.semaines.filter((s) => s.signe).length}/${r.semaines.length}`;
+    o["Mois signé"] = r.signe ? "Oui" : "NON";
     return o;
   });
   const ws1 = XLSX.utils.json_to_sheet(recapRows);
@@ -229,21 +225,16 @@ export function excelBlob(data, { year, month }) {
   ws2["!cols"] = [{ wch: 22 }, { wch: 11 }, { wch: 10 }, ...Array(4).fill({ wch: 10 }), { wch: 14 }, { wch: 15 }, { wch: 16 }, { wch: 20 }, { wch: 11 }];
   XLSX.utils.book_append_sheet(wb, ws2, "Détail jours");
 
-  const sig = [];
-  recap.forEach((r) =>
-    r.semaines.forEach((s) =>
-      sig.push({
-        Salarié: nomComplet(r.employe),
-        Semaine: `du ${fmtDateLong(parseIso(s.mon))} au ${fmtDateLong(addDays(parseIso(s.mon), 6))}`,
-        "Heures semaine": toDecimal(s.minutesSemaine),
-        Signé: s.signe ? "Oui" : "Non",
-        "Signé le": s.signeLe ? new Date(s.signeLe).toLocaleString("fr-FR") : "",
-        Commentaire: s.commentaire,
-      })
-    )
-  );
+  const sig = recap.map((r) => ({
+    Salarié: nomComplet(r.employe),
+    Mois: `${MOIS[month]} ${year}`,
+    "Heures du mois": toDecimal(r.totalMois),
+    Signé: r.signe ? "Oui" : "NON",
+    "Signé le": r.signe ? new Date(r.sg.signeLe).toLocaleString("fr-FR") : "",
+    Commentaire: r.sg?.commentaire || "",
+  }));
   const ws3 = XLSX.utils.json_to_sheet(sig);
-  ws3["!cols"] = [{ wch: 22 }, { wch: 28 }, { wch: 14 }, { wch: 7 }, { wch: 20 }, { wch: 40 }];
+  ws3["!cols"] = [{ wch: 22 }, { wch: 16 }, { wch: 14 }, { wch: 7 }, { wch: 20 }, { wch: 50 }];
   XLSX.utils.book_append_sheet(wb, ws3, "Signatures");
 
   const out = XLSX.write(wb, { bookType: "xlsx", type: "array" });
@@ -287,12 +278,13 @@ export function exportPdf(data, { year, month }) {
       y += 5;
       doc.setFont("helvetica", "bold");
       doc.text(`Semaine ${isoWeek(m)} — du ${fmtDateLong(m)} au ${fmtDateLong(addDays(m, 6))}`, 14, y);
-      doc.text(`${fmtH(s.minutesSemaine)}`, 196, y, { align: "right" });
+      doc.text(`${fmtH(s.minutesDansMois)}`, 196, y, { align: "right" });
       doc.setFont("helvetica", "normal");
       y += 5;
       s.days.forEach((d, i) => {
         const min = dayMinutes(d);
         const date = addDays(m, i);
+        if (date.getMonth() !== month) return;
         if (d.abs) {
           doc.text(`${JOURS[i]} ${fmtDateLong(date).slice(0, 5)}`, 18, y);
           doc.setFont("helvetica", "bold").text(ABSENCES[d.abs]?.label || d.abs, 60, y);
@@ -309,22 +301,25 @@ export function exportPdf(data, { year, month }) {
         doc.text(fmtH(min), 120, y);
         y += 4.6;
       });
-      if (s.commentaire) {
-        doc.setFontSize(9).text(`Commentaire : ${s.commentaire}`.slice(0, 110), 18, y);
-        doc.setFontSize(10);
-        y += 4.6;
-      }
-      if (s.signature) {
-        try { doc.addImage(s.signature, "PNG", 140, y - 4, 45, 15); } catch { /* image invalide */ }
-        doc.setFontSize(8).text(`Signé le ${new Date(s.signeLe).toLocaleString("fr-FR")}`, 140, y + 13);
-        doc.setFontSize(10);
-        y += 17;
-      } else {
-        doc.setTextColor(200, 40, 40).text("NON SIGNÉ", 140, y);
-        doc.setTextColor(0);
-        y += 6;
-      }
+      y += 2;
     });
+
+    // Signature du mois
+    if (y > 240) { doc.addPage(); y = 20; }
+    doc.setDrawColor(180).line(14, y, 196, y);
+    y += 6;
+    doc.setFontSize(9).text(`Je certifie que ces heures (${fmtH(r.totalMois)}) correspondent au travail effectué en ${MOIS[month].toLowerCase()} ${year}.`, 14, y);
+    y += 5;
+    if (r.sg?.commentaire) { doc.text(`Commentaire : ${r.sg.commentaire}`.slice(0, 120), 14, y); y += 5; }
+    doc.setFontSize(10);
+    if (r.signe) {
+      try { doc.addImage(r.sg.signature, "PNG", 14, y, 60, 20); } catch { /* image invalide */ }
+      doc.setFontSize(8).text(`Signé le ${new Date(r.sg.signeLe).toLocaleString("fr-FR")}`, 14, y + 24);
+      doc.setFontSize(10);
+    } else {
+      doc.setTextColor(200, 40, 40).setFont("helvetica", "bold").text("MOIS NON SIGNÉ", 14, y + 6);
+      doc.setTextColor(0).setFont("helvetica", "normal");
+    }
   });
   return saveFile(doc.output("blob"), `Feuilles_heures_${MOIS[month]}_${year}.pdf`);
 }

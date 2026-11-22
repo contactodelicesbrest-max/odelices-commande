@@ -44,6 +44,7 @@ html, body { margin:0; background: var(--bg); }
 .cost-grid.off { opacity: .5; }
 .cost-head { font-size: 11px; text-transform: uppercase; letter-spacing: .08em; color: var(--gold); font-weight: 700; margin-top: 8px; }
 .cost-tot { border-bottom: none; font-weight: 700; }
+.week-title { font-size: 12px; text-transform: uppercase; letter-spacing: .08em; color: var(--muted); font-weight: 700; margin: 16px 0 -6px; }
 .h-slot { display:flex; flex-direction:column; gap: 4px; }
 .h-tot { text-align:right; font-weight: 700; font-size: 13px; display:flex; flex-direction:column; }
 .h-tot small { font-size: 11px; } .plus { color: #6fd08a; } .minus { color: #ff8a73; }

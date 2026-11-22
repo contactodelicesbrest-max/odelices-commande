@@ -3,6 +3,7 @@ import { listen, read, write, patch, del, seedIfEmpty } from "./db.js";
 import {
   JOURS, JOURS_COURTS, MOIS, iso, parseIso, addDays, mondayOf, weekLabel, fmtDate,
   normWeek, emptyWeek, dayMinutes, dayMinutesRaw, weekMinutes, fmtH, mondaysOfMonth, ABSENCES,
+  ymOf, parseYm, monthLabel, addMonths, defaultSignMonth, inMonth, mergeWeek,
 } from "./time.js";
 import { buildMonth, exportExcel, exportPdf, parsePlanningFile } from "./exports.js";
 import SignaturePad from "./SignaturePad.jsx";
@@ -23,6 +24,8 @@ export default function Pointage() {
   const [planning, setPlanning] = useState({});
   const [pointages, setPointages] = useState({});
   const [screen, setScreen] = useState({ name: "home" });
+  const [ym, setYm] = useState(defaultSignMonth());
+  const monthData = useMonthData(ym);
   const [pinAsk, setPinAsk] = useState(null); // { expected, title, onOk }
 
   useEffect(() => {
@@ -59,7 +62,7 @@ export default function Pointage() {
 
       {screen.name === "home" && (
         <Home
-          week={week} setWeek={setWeek} employes={sorted} planning={planning} pointages={pointages}
+          ym={ym} setYm={setYm} employes={sorted} monthData={monthData}
           onPick={(id) => askPin(employes[id]?.pin, `Code de ${nomComplet(employes[id])}`, () => setScreen({ name: "sign", id }))}
           onGerant={() => askPin(config.pinGerant || "1234", "Code gérant", () => setScreen({ name: "gerant" }))}
         />
@@ -67,9 +70,8 @@ export default function Pointage() {
 
       {screen.name === "sign" && employes[screen.id] && (
         <SignScreen
-          week={week} id={screen.id} employe={employes[screen.id]}
-          planned={normWeek(planning[screen.id]?.days)}
-          pointage={pointages[screen.id]}
+          key={ym + screen.id}
+          ym={ym} id={screen.id} employe={employes[screen.id]} monthData={monthData}
           onBack={() => setScreen({ name: "home" })}
         />
       )}
@@ -78,6 +80,7 @@ export default function Pointage() {
         <Gerant
           week={week} setWeek={setWeek} employes={employes} sorted={sorted}
           planning={planning} pointages={pointages} config={config}
+          ym={ym} setYm={setYm} monthData={monthData}
           onBack={() => setScreen({ name: "home" })}
         />
       )}
@@ -105,6 +108,55 @@ function Shell({ children }) {
   );
 }
 
+/** Écoute en direct le planning, les heures saisies et les signatures de toutes les semaines d'un mois. */
+function useMonthData(ym) {
+  const [data, setData] = useState({ ym, mondays: [], planning: {}, pointages: {}, signatures: {}, loaded: false });
+  useEffect(() => {
+    const { year, month } = parseYm(ym);
+    const mondays = mondaysOfMonth(year, month);
+    const acc = { ym, year, month, mondays, planning: {}, pointages: {}, signatures: {} };
+    let count = 0;
+    const total = mondays.length * 2 + 1;
+    const push = () => setData({ ...acc, planning: { ...acc.planning }, pointages: { ...acc.pointages }, loaded: count >= total });
+    const seen = new Set();
+    const mark = (k) => { if (!seen.has(k)) { seen.add(k); count++; } };
+    const unsubs = [];
+    mondays.forEach((w) => {
+      unsubs.push(listen(`planning/${w}`, (v) => { acc.planning[w] = v || {}; mark("p" + w); push(); }));
+      unsubs.push(listen(`pointages/${w}`, (v) => { acc.pointages[w] = v || {}; mark("t" + w); push(); }));
+    });
+    unsubs.push(listen(`signatures/${ym}`, (v) => { acc.signatures = v || {}; mark("s"); push(); }));
+    return () => unsubs.forEach((u) => u());
+  }, [ym]);
+  return data;
+}
+
+/** Semaines du mois pour un salarié (jours réels = saisis, sinon planning). */
+function monthWeeks(monthData, id) {
+  return monthData.mondays.map((mon) => {
+    const planned = normWeek(monthData.planning[mon]?.[id]?.days);
+    return { mon, planned, days: mergeWeek(planned, monthData.pointages[mon]?.[id]?.days) };
+  });
+}
+
+function monthTotal(weeks, month, key = "days") {
+  return weeks.reduce((t, w) => t + w[key].reduce((s, d, i) => s + (inMonth(w.mon, i, month) ? dayMinutes(d) : 0), 0), 0);
+}
+
+function MonthNav({ ym, setYm }) {
+  const current = defaultSignMonth();
+  return (
+    <div className="week-nav">
+      <button className="nav-btn" onClick={() => setYm(addMonths(ym, -1))}>‹</button>
+      <div className="week-label">
+        {monthLabel(ym)}
+        {ym !== current && <button className="link-btn" onClick={() => setYm(current)}>revenir au mois à signer</button>}
+      </div>
+      <button className="nav-btn" onClick={() => setYm(addMonths(ym, 1))}>›</button>
+    </div>
+  );
+}
+
 // =====================================================================
 function WeekNav({ week, setWeek }) {
   const m = parseIso(week);
@@ -123,7 +175,7 @@ function WeekNav({ week, setWeek }) {
   );
 }
 
-function Home({ week, setWeek, employes, planning, pointages, onPick, onGerant }) {
+function Home({ ym, setYm, employes, monthData, onPick, onGerant }) {
   return (
     <>
       <header className="pt-header">
@@ -134,22 +186,22 @@ function Home({ week, setWeek, employes, planning, pointages, onPick, onGerant }
         <button className="ghost-btn" onClick={onGerant}>⚙ Gérant</button>
       </header>
 
-      <WeekNav week={week} setWeek={setWeek} />
+      <MonthNav ym={ym} setYm={setYm} />
 
-      <p className="muted small">Touchez votre nom pour vérifier vos heures de la semaine et signer.</p>
+      <p className="muted small">Touchez votre nom pour vérifier vos heures du mois et signer.</p>
 
       <div className="emp-list">
         {employes.length === 0 && <p className="muted">Aucun salarié. Ajoutez-les dans l'espace gérant.</p>}
         {employes.map(([id, e]) => {
-          const pt = pointages[id];
-          const prevu = weekMinutes(normWeek(planning[id]?.days));
-          const signe = !!pt?.signature;
+          const sg = monthData.signatures[id];
+          const prevu = monthTotal(monthWeeks(monthData, id), monthData.month ?? 0, "planned");
+          const signe = !!sg?.signature;
           return (
             <button key={id} className={`emp-card ${signe ? "emp-ok" : ""}`} onClick={() => onPick(id)}>
               <div>
                 <div className="emp-name">{nomComplet(e)}</div>
                 <div className="muted small">
-                  {signe ? `Signé · ${fmtH(pt.minutes || 0)}` : `Prévu : ${fmtH(prevu)}`}
+                  {signe ? `Signé · ${fmtH(sg.minutes || 0)}` : `Prévu : ${fmtH(prevu)}`}
                 </div>
               </div>
               <span className={`badge ${signe ? "badge-ok" : "badge-todo"}`}>{signe ? "✓ Signé" : "À signer"}</span>
@@ -162,7 +214,7 @@ function Home({ week, setWeek, employes, planning, pointages, onPick, onGerant }
 }
 
 // =====================================================================
-function HoursEditor({ week, days, onChange, readOnly, compare }) {
+function HoursEditor({ week, days, onChange, readOnly, compare, onlyMonth }) {
   const m = parseIso(week);
   const copy = () => days.map((d) => ({ m: { ...d.m }, s: { ...d.s }, abs: d.abs || "" }));
   const set = (i, slot, key, val) => {
@@ -188,6 +240,7 @@ function HoursEditor({ week, days, onChange, readOnly, compare }) {
         <span>Jour</span><span>Midi</span><span>Soir</span><span>Total</span>
       </div>
       {days.map((d, i) => {
+        if (onlyMonth !== undefined && !inMonth(week, i, onlyMonth)) return null;
         const min = dayMinutes(d);
         const diff = compare ? min - dayMinutes(compare[i]) : 0;
         return (
@@ -223,24 +276,32 @@ function HoursEditor({ week, days, onChange, readOnly, compare }) {
   );
 }
 
-function SignScreen({ week, id, employe, planned, pointage, onBack }) {
-  const signed = !!pointage?.signature;
-  const [days, setDays] = useState(() => (pointage ? normWeek(pointage.days) : planned));
-  const [comment, setComment] = useState(pointage?.commentaire || "");
+function SignScreen({ ym, id, employe, monthData, onBack }) {
+  const { month } = parseYm(ym);
+  const sg = monthData.signatures[id];
+  const signed = !!sg?.signature;
+  const [weeks, setWeeks] = useState(() => monthWeeks(monthData, id));
+  const [comment, setComment] = useState(sg?.commentaire || "");
   const [sig, setSig] = useState(null);
   const [certif, setCertif] = useState(false);
   const [saving, setSaving] = useState(false);
   const [done, setDone] = useState(false);
 
-  const total = weekMinutes(days);
-  const totalPrevu = weekMinutes(planned);
+  const total = monthTotal(weeks, month);
+  const totalPrevu = monthTotal(weeks, month, "planned");
+  const setDays = (mon, days) => setWeeks((ws) => ws.map((w) => (w.mon === mon ? { ...w, days } : w)));
 
   const submit = async () => {
     setSaving(true);
     try {
-      await write(`pointages/${week}/${id}`, {
-        days, minutes: total, commentaire: comment.trim(),
-        signature: sig, signeLe: new Date().toISOString(),
+      // Heures jour par jour (seulement les jours du mois signé)
+      const upd = {};
+      weeks.forEach((w) => w.days.forEach((d, i) => {
+        if (inMonth(w.mon, i, month)) upd[`${w.mon}/${id}/days/${i}`] = { ...d, ok: 1 };
+      }));
+      await patch("pointages", upd);
+      await write(`signatures/${ym}/${id}`, {
+        minutes: total, commentaire: comment.trim(), signature: sig, signeLe: new Date().toISOString(),
       });
       setDone(true);
       autoBackup({ force: true });
@@ -256,7 +317,7 @@ function SignScreen({ week, id, employe, planned, pointage, onBack }) {
       <div className="center-box">
         <div className="big-check">✓</div>
         <h2 className="pt-h2">Merci {employe.prenom} !</h2>
-        <p className="muted">Ta semaine est signée : {fmtH(total)}.</p>
+        <p className="muted">Ton mois de {monthLabel(ym)} est signé : {fmtH(total)}.</p>
         <button className="primary-btn" onClick={onBack}>Terminer</button>
       </div>
     );
@@ -266,15 +327,20 @@ function SignScreen({ week, id, employe, planned, pointage, onBack }) {
     <>
       <button className="back-btn" onClick={onBack}>‹ Retour</button>
       <h2 className="pt-h2">{nomComplet(employe)}</h2>
-      <p className="muted small">{weekLabel(week)}</p>
+      <p className="muted small">Heures de {monthLabel(ym)}</p>
 
       {signed ? (
-        <div className="alert ok">Semaine signée le {new Date(pointage.signeLe).toLocaleString("fr-FR")}. Pour corriger, demandez au gérant de la déverrouiller.</div>
+        <div className="alert ok">Mois signé le {new Date(sg.signeLe).toLocaleString("fr-FR")}. Pour corriger, demandez au gérant de le déverrouiller.</div>
       ) : (
-        <p className="small">Vérifie tes horaires. S'ils ne correspondent pas à ce que tu as fait, corrige-les avant de signer.</p>
+        <p className="small">Vérifie tes horaires du mois. S'ils ne correspondent pas à ce que tu as fait (heures en plus, absence, congé…), corrige-les avant de signer.</p>
       )}
 
-      <HoursEditor week={week} days={days} onChange={setDays} readOnly={signed} compare={planned} />
+      {weeks.map((w) => (
+        <div key={w.mon}>
+          <p className="week-title">{weekLabel(w.mon)}</p>
+          <HoursEditor week={w.mon} days={w.days} onChange={(d) => setDays(w.mon, d)} readOnly={signed} compare={w.planned} onlyMonth={month} />
+        </div>
+      ))}
 
       <div className="totals">
         <div><span className="muted small">Prévu</span><b>{fmtH(totalPrevu)}</b></div>
@@ -284,24 +350,24 @@ function SignScreen({ week, id, employe, planned, pointage, onBack }) {
 
       {signed ? (
         <>
-          {pointage.commentaire && <p className="small">Commentaire : {pointage.commentaire}</p>}
-          <img src={pointage.signature} alt="signature" className="sig-img" />
+          {sg.commentaire && <p className="small">Commentaire : {sg.commentaire}</p>}
+          <img src={sg.signature} alt="signature" className="sig-img" />
         </>
       ) : (
         <>
           <label className="lbl">Commentaire (facultatif)</label>
-          <textarea className="input" rows={2} value={comment} onChange={(e) => setComment(e.target.value)} placeholder="Ex : resté 30 min de plus vendredi soir" />
+          <textarea className="input" rows={2} value={comment} onChange={(e) => setComment(e.target.value)} placeholder="Ex : resté 30 min de plus le vendredi 13" />
 
           <label className="lbl">Signature</label>
           <SignaturePad onChange={setSig} />
 
           <label className="check">
             <input type="checkbox" checked={certif} onChange={(e) => setCertif(e.target.checked)} />
-            Je certifie que ces heures ({fmtH(total)}) correspondent au travail effectué cette semaine.
+            Je certifie que ces heures ({fmtH(total)}) correspondent au travail effectué en {monthLabel(ym).toLowerCase()}.
           </label>
 
           <button className="primary-btn full" disabled={!sig || !certif || saving} onClick={submit}>
-            {saving ? "Enregistrement…" : "Signer ma semaine"}
+            {saving ? "Enregistrement…" : `Signer mon mois de ${MOIS[month].toLowerCase()}`}
           </button>
         </>
       )}
@@ -365,34 +431,41 @@ function Gerant(props) {
   );
 }
 
-function Suivi({ week, setWeek, sorted, planning, pointages }) {
+function Suivi({ ym, setYm, sorted, monthData }) {
   const [open, setOpen] = useState(null);
+  const { month } = parseYm(ym);
   const unlock = async (id) => {
-    if (!confirm("Déverrouiller cette semaine ? La signature sera supprimée et le salarié devra signer à nouveau.")) return;
-    await del(`pointages/${week}/${id}`);
+    if (!confirm(`Déverrouiller ${monthLabel(ym)} ? La signature sera supprimée et le salarié devra signer à nouveau (ses heures saisies sont gardées).`)) return;
+    await del(`signatures/${ym}/${id}`);
   };
   return (
     <>
-      <WeekNav week={week} setWeek={setWeek} />
+      <MonthNav ym={ym} setYm={setYm} />
       {sorted.map(([id, e]) => {
-        const pt = pointages[id];
-        const pl = normWeek(planning[id]?.days);
+        const sg = monthData.signatures[id];
+        const weeks = monthWeeks(monthData, id);
+        const total = monthTotal(weeks, month);
         return (
           <div key={id} className="card">
             <div className="row-between" onClick={() => setOpen(open === id ? null : id)}>
               <b>{nomComplet(e)}</b>
-              <span className={`badge ${pt?.signature ? "badge-ok" : "badge-todo"}`}>
-                {pt?.signature ? `✓ ${fmtH(pt.minutes)}` : `Non signé · prévu ${fmtH(weekMinutes(pl))}`}
+              <span className={`badge ${sg?.signature ? "badge-ok" : "badge-todo"}`}>
+                {sg?.signature ? `✓ ${fmtH(sg.minutes)}` : `Non signé · ${fmtH(total)}`}
               </span>
             </div>
             {open === id && (
               <>
-                <HoursEditor week={week} days={pt ? normWeek(pt.days) : pl} readOnly compare={pt ? pl : null} onChange={() => {}} />
-                {pt?.commentaire && <p className="small">Commentaire : {pt.commentaire}</p>}
-                {pt?.signature && (
+                {weeks.map((w) => (
+                  <div key={w.mon}>
+                    <p className="week-title">{weekLabel(w.mon)}</p>
+                    <HoursEditor week={w.mon} days={w.days} readOnly compare={w.planned} onlyMonth={month} onChange={() => {}} />
+                  </div>
+                ))}
+                {sg?.commentaire && <p className="small">Commentaire : {sg.commentaire}</p>}
+                {sg?.signature && (
                   <>
-                    <img src={pt.signature} alt="signature" className="sig-img" />
-                    <p className="muted small">Signé le {new Date(pt.signeLe).toLocaleString("fr-FR")}</p>
+                    <img src={sg.signature} alt="signature" className="sig-img" />
+                    <p className="muted small">Signé le {new Date(sg.signeLe).toLocaleString("fr-FR")}</p>
                     <button className="danger-btn" onClick={() => unlock(id)}>Déverrouiller (faire re-signer)</button>
                   </>
                 )}
@@ -522,7 +595,8 @@ function ExportTab({ employes, week, config }) {
         planning[w] = await read(`planning/${w}`);
         pointages[w] = await read(`pointages/${w}`);
       }));
-      if (alive) setData(buildMonth({ year, month, employes, planning, pointages, config }));
+      const signatures = await read(`signatures/${ym}`);
+      if (alive) setData(buildMonth({ year, month, employes, planning, pointages, signatures, config }));
     })();
     return () => { alive = false; };
   }, [ym, employes, config]);
@@ -533,7 +607,7 @@ function ExportTab({ employes, week, config }) {
     setBusy(false);
   };
 
-  const missing = data ? data.recap.flatMap((r) => r.semaines.filter((s) => !s.signe).map((s) => ({ r, s }))) : [];
+  const missing = data ? data.recap.filter((r) => !r.signe) : [];
 
   return (
     <>
@@ -572,12 +646,8 @@ function ExportTab({ employes, week, config }) {
 
           {missing.length > 0 && (
             <div className="alert">
-              {missing.length} semaine(s) non signée(s) — les heures prévues au planning seront utilisées :
-              <ul>
-                {missing.map(({ r, s }, i) => (
-                  <li key={i}>{nomComplet(r.employe)} — semaine du {fmtDate(parseIso(s.mon))}</li>
-                ))}
-              </ul>
+              Mois non signé par : {missing.map((r) => nomComplet(r.employe)).join(", ")}.
+              Leurs heures saisies (ou à défaut le planning) seront utilisées, marquées « NON SIGNÉ ».
             </div>
           )}
 
@@ -754,7 +824,7 @@ function CoutsTab({ week, setWeek, sorted, planning, pointages, config }) {
 
       {liste.map(([id, e]) => {
         const pt = pointages[id];
-        const days = pt ? normWeek(pt.days) : normWeek(planning[id]?.days);
+        const days = mergeWeek(planning[id]?.days, pt?.days);
         const an = analyseSemaine(days, e, cfg);
         totalSemaine += an.tot.cout;
         const hs = Object.entries(TRANCHE_LABELS).filter(([k]) => an.tot.parts[k]);
@@ -762,7 +832,7 @@ function CoutsTab({ week, setWeek, sorted, planning, pointages, config }) {
           <div key={id} className="card">
             <div className="row-between">
               <b>{nomComplet(e)}</b>
-              <span className="muted small">{an.taux} €/h net · contrat {an.contrat} h · {pt?.signature ? "heures signées" : "planning"}</span>
+              <span className="muted small">{an.taux} €/h net · contrat {an.contrat} h · {pt?.days ? "heures saisies" : "planning"}</span>
             </div>
             <div className="cost-grid cost-head"><span>Jour</span><span>Heures</span><span>Net</span><span>Coût</span></div>
             {an.jours.map((j, i) => (

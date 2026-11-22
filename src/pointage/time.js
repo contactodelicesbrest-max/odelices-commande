@@ -138,3 +138,43 @@ export function mondaysOfMonth(year, month) {
   for (let m = mondayOf(first); m <= last; m = addDays(m, 7)) res.push(iso(m));
   return res;
 }
+
+// ---------- Mois (signature mensuelle) ----------
+
+export const ymOf = (date) => `${date.getFullYear()}-${pad(date.getMonth() + 1)}`;
+
+export function parseYm(ym) {
+  const [y, m] = ym.split("-").map(Number);
+  return { year: y, month: m - 1 };
+}
+
+export function monthLabel(ym) {
+  const { year, month } = parseYm(ym);
+  return `${MOIS[month]} ${year}`;
+}
+
+export function addMonths(ym, n) {
+  const { year, month } = parseYm(ym);
+  return ymOf(new Date(year, month + n, 1));
+}
+
+/** Mois proposé pour signer : jusqu'au 10 du mois, on signe encore le mois précédent. */
+export function defaultSignMonth(today = new Date()) {
+  return today.getDate() <= 10 ? ymOf(new Date(today.getFullYear(), today.getMonth() - 1, 1)) : ymOf(today);
+}
+
+/** Le jour i (0 = lundi) de la semaine `mondayIso` est-il dans le mois ? */
+export function inMonth(mondayIso, i, month) {
+  return addDays(parseIso(mondayIso), i).getMonth() === month;
+}
+
+/**
+ * Semaine réelle = jours saisis/signés par le salarié (pointages) et, pour les autres jours, le planning.
+ * Les pointages sont stockés jour par jour (days/0 … days/6) car une semaine peut être à cheval sur 2 mois.
+ */
+export function mergeWeek(planDays, ptDays) {
+  const pl = normWeek(planDays);
+  if (!ptDays) return pl;
+  const pt = normWeek(ptDays);
+  return pl.map((d, i) => (ptDays[i] ? pt[i] : d));
+}
