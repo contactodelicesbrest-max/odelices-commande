@@ -7,7 +7,7 @@ export const DEFAULT_CFG = {
   tauxSal: 22, // % de charges salariales (net -> brut : brut = net / (1 - 22 %))
   tauxPat: 15, // % de charges patronales APRÈS réduction générale (bas salaires) — à ajuster avec le comptable
   valeurRepas: 4.22, // avantage en nature repas HCR (valeur 2025, à mettre à jour chaque 1er janvier)
-  smicBrut: 12.02, // SMIC horaire brut (à vérifier / mettre à jour)
+  smicBrut: 12.31, // SMIC horaire brut en France (à mettre à jour à chaque revalorisation)
 };
 
 export const cfgOf = (config) => ({ ...DEFAULT_CFG, ...(config?.paie || {}) });
