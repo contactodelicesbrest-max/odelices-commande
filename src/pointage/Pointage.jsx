@@ -887,6 +887,7 @@ function CoutsTab({ week, setWeek, sorted, planning, pointages, config }) {
               ["tauxPat", "Charges patronales après réduction générale (%) — demander au comptable"],
               ["valeurRepas", "Valeur d'un repas, avantage en nature HCR (€)"],
               ["smicBrut", "SMIC horaire brut (€)"],
+              ["reposMin", "Repos minimum par semaine, en jours (HCR : 2 — ½ journée = 0,5)"],
             ].map(([k, l]) => (
               <div key={k}>
                 <label className="lbl">{l}</label>
@@ -897,7 +898,7 @@ function CoutsTab({ week, setWeek, sorted, planning, pointages, config }) {
           </>
         ) : (
           <p className="muted small">
-            Taux net défaut {cfg.tauxNetDefaut} € · charges salariales {cfg.tauxSal} % · patronales {cfg.tauxPat} % · repas {cfg.valeurRepas} € · SMIC brut {cfg.smicBrut} €.
+            Taux net défaut {cfg.tauxNetDefaut} € · charges salariales {cfg.tauxSal} % · patronales {cfg.tauxPat} % · repas {cfg.valeurRepas} € · SMIC brut {cfg.smicBrut} € · repos mini {String(cfg.reposMin).replace(".", ",")} j.
             Le taux net de chaque salarié se règle dans l'onglet Salariés.
           </p>
         )}

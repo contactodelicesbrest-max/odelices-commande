@@ -7,6 +7,7 @@ export const DEFAULT_CFG = {
   tauxSal: 22, // % de charges salariales (net -> brut : brut = net / (1 - 22 %))
   tauxPat: 15, // % de charges patronales APRÈS réduction générale (bas salaires) — à ajuster avec le comptable
   valeurRepas: 4.22, // avantage en nature repas HCR (valeur 2025, à mettre à jour chaque 1er janvier)
+  reposMin: 2, // jours de repos par semaine exigés pour l'alerte (HCR : 2 ; mettre 1,5 si le comptable le valide)
   smicBrut: 12.31, // SMIC horaire brut en France (à mettre à jour à chaque revalorisation)
 };
 
@@ -119,7 +120,7 @@ export function analyseSemaine(days, employe, cfg) {
     const n = (slotMinutes(d.m) > 0 ? 1 : 0) + (slotMinutes(d.s) > 0 ? 1 : 0);
     return t + (n === 0 ? 1 : n === 1 ? 0.5 : 0);
   }, 0);
-  if (repos < 2 && tot.min > 0) alertes.push(`${String(repos).replace(".", ",")} jour(s) de repos (HCR : 2 jours par semaine en principe — à vérifier avec le comptable)`);
+  if (repos < cfg.reposMin && tot.min > 0) alertes.push(`${String(repos).replace(".", ",")} jour(s) de repos sur la semaine (minimum réglé : ${String(cfg.reposMin).replace(".", ",")})`);
   if (taux < smicNet(cfg)) alertes.push(`Taux net ${taux} € < SMIC net estimé (${smicNet(cfg)} €)`);
 
   return { contrat, taux, jours, tot, alertes };
