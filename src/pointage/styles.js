@@ -29,12 +29,16 @@ html, body { margin:0; background: var(--bg); }
 .badge { font-size: 12px; font-weight: 700; padding: 6px 10px; border-radius: 999px; white-space: nowrap; }
 .badge-ok { background: var(--ok); color:#fff; } .badge-todo { background: rgba(232,162,48,.18); color: var(--gold); }
 .hours { background: var(--panel); border:1px solid var(--border); border-radius: 14px; overflow:hidden; margin: 12px 0; }
-.hours-head, .hours-row { display:grid; grid-template-columns: 52px 1fr 1fr 62px; gap: 6px; align-items:center; padding: 8px 10px; }
+.hours-head, .hours-row { display:grid; grid-template-columns: 70px 1fr 1fr 62px; gap: 6px; align-items:center; padding: 8px 10px; }
 .hours-head { font-size: 11px; text-transform: uppercase; letter-spacing: .08em; color: var(--gold); font-weight: 700; border-bottom:1px solid var(--border); }
 .hours-row { border-bottom: 1px solid var(--border); }
 .hours-row:last-child { border-bottom: none; }
 .hours-row.off { opacity: .55; }
 .h-day { font-weight: 700; display:flex; flex-direction:column; font-size: 14px; } .h-day small { color: var(--muted); font-weight: 400; font-size: 11px; }
+.abs-sel { margin-top: 4px; background: var(--bg); color: var(--text); border: 1px solid var(--border); border-radius: 6px; font-size: 11px; padding: 3px 2px; width: 100%; color-scheme: dark; }
+.h-abs { grid-column: span 2; color: #fff; font-weight: 700; font-size: 14px; border-radius: 8px; padding: 10px; text-align: center; }
+.h-abs small { font-weight: 400; opacity: .9; }
+.abs-pill { color:#fff; font-size: 11px; font-weight: 700; padding: 2px 7px; border-radius: 999px; margin-left: 6px; }
 .h-slot { display:flex; flex-direction:column; gap: 4px; }
 .h-tot { text-align:right; font-weight: 700; font-size: 13px; display:flex; flex-direction:column; }
 .h-tot small { font-size: 11px; } .plus { color: #6fd08a; } .minus { color: #ff8a73; }

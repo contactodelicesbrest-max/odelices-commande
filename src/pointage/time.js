@@ -74,9 +74,24 @@ export function slotMinutes(slot) {
   return diff;
 }
 
-export function dayMinutes(day) {
+// Types d'absence possibles sur une journée (le jour n'est alors pas compté comme travaillé).
+export const ABSENCES = {
+  CP: { label: "Congés payés", court: "CP", color: "#3d8a9c" },
+  MAL: { label: "Maladie", court: "Maladie", color: "#b05cc4" },
+  ABS: { label: "Absence", court: "Absent", color: "#e8452c" },
+  FER: { label: "Férié", court: "Férié", color: "#7a8a3c" },
+};
+
+/** Heures des créneaux saisis, même si le jour est marqué absent (= heures d'absence pour la paie). */
+export function dayMinutesRaw(day) {
   if (!day) return 0;
   return slotMinutes(day.m) + slotMinutes(day.s);
+}
+
+/** Heures travaillées : 0 si le jour est une absence / un congé. */
+export function dayMinutes(day) {
+  if (!day || day.abs) return 0;
+  return dayMinutesRaw(day);
 }
 
 export function weekMinutes(days) {
@@ -96,7 +111,7 @@ export function toDecimal(min) {
 }
 
 export function emptyDay() {
-  return { m: { d: "", f: "" }, s: { d: "", f: "" } };
+  return { m: { d: "", f: "" }, s: { d: "", f: "" }, abs: "" };
 }
 
 export function emptyWeek() {
@@ -110,6 +125,7 @@ export function normWeek(days) {
     return {
       m: { d: d.m?.d || "", f: d.m?.f || "" },
       s: { d: d.s?.d || "", f: d.s?.f || "" },
+      abs: d.abs || "",
     };
   });
 }

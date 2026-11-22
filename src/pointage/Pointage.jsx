@@ -2,10 +2,11 @@ import { useEffect, useMemo, useState } from "react";
 import { listen, read, write, patch, del, seedIfEmpty } from "./db.js";
 import {
   JOURS, JOURS_COURTS, MOIS, iso, parseIso, addDays, mondayOf, weekLabel, fmtDate,
-  normWeek, emptyWeek, dayMinutes, weekMinutes, fmtH, mondaysOfMonth,
+  normWeek, emptyWeek, dayMinutes, dayMinutesRaw, weekMinutes, fmtH, mondaysOfMonth, ABSENCES,
 } from "./time.js";
 import { buildMonth, exportExcel, exportPdf, parsePlanningFile } from "./exports.js";
 import SignaturePad from "./SignaturePad.jsx";
+import { autoBackup, downloadBackup, restoreBackup, getStatus, isNative, FOLDER } from "./backup.js";
 import { styles } from "./styles.js";
 
 const nomComplet = (e) => `${e.prenom || ""} ${(e.nom || "").toUpperCase()}`.trim();
@@ -25,6 +26,7 @@ export default function Pointage() {
 
   useEffect(() => {
     seedIfEmpty()
+      .then(() => autoBackup())
       .catch((e) => setError("Connexion à la base impossible : " + e.message))
       .finally(() => setReady(true));
     const u1 = listen("employes", (v) => setEmployes(v || {}));
@@ -161,9 +163,15 @@ function Home({ week, setWeek, employes, planning, pointages, onPick, onGerant }
 // =====================================================================
 function HoursEditor({ week, days, onChange, readOnly, compare }) {
   const m = parseIso(week);
+  const copy = () => days.map((d) => ({ m: { ...d.m }, s: { ...d.s }, abs: d.abs || "" }));
   const set = (i, slot, key, val) => {
-    const next = days.map((d) => ({ m: { ...d.m }, s: { ...d.s } }));
+    const next = copy();
     next[i][slot][key] = val;
+    onChange(next);
+  };
+  const setAbs = (i, val) => {
+    const next = copy();
+    next[i].abs = val;
     onChange(next);
   };
   const T = (i, slot, k) =>
@@ -182,12 +190,29 @@ function HoursEditor({ week, days, onChange, readOnly, compare }) {
         const min = dayMinutes(d);
         const diff = compare ? min - dayMinutes(compare[i]) : 0;
         return (
-          <div key={i} className={`hours-row ${min ? "" : "off"}`}>
-            <span className="h-day">{JOURS_COURTS[i]}<small>{fmtDate(addDays(m, i))}</small></span>
-            <span className="h-slot">{T(i, "m", "d")}{T(i, "m", "f")}</span>
-            <span className="h-slot">{T(i, "s", "d")}{T(i, "s", "f")}</span>
+          <div key={i} className={`hours-row ${min || d.abs ? "" : "off"}`}>
+            <span className="h-day">
+              {JOURS_COURTS[i]}<small>{fmtDate(addDays(m, i))}</small>
+              {!readOnly && (
+                <select className="abs-sel" value={d.abs} onChange={(e) => setAbs(i, e.target.value)}>
+                  <option value="">Travail</option>
+                  {Object.entries(ABSENCES).map(([k, a]) => <option key={k} value={k}>{a.court}</option>)}
+                </select>
+              )}
+            </span>
+            {d.abs ? (
+              <span className="h-abs" style={{ background: ABSENCES[d.abs]?.color }}>
+                {ABSENCES[d.abs]?.label || d.abs}
+                {dayMinutesRaw(d) > 0 && <small> · {fmtH(dayMinutesRaw(d))} non travaillées</small>}
+              </span>
+            ) : (
+              <>
+                <span className="h-slot">{T(i, "m", "d")}{T(i, "m", "f")}</span>
+                <span className="h-slot">{T(i, "s", "d")}{T(i, "s", "f")}</span>
+              </>
+            )}
             <span className="h-tot">
-              {min ? fmtH(min) : "repos"}
+              {min ? fmtH(min) : d.abs ? ABSENCES[d.abs]?.court : "repos"}
               {compare && diff !== 0 && <small className={diff > 0 ? "plus" : "minus"}>{diff > 0 ? "+" : ""}{fmtH(diff)}</small>}
             </span>
           </div>
@@ -217,6 +242,7 @@ function SignScreen({ week, id, employe, planned, pointage, onBack }) {
         signature: sig, signeLe: new Date().toISOString(),
       });
       setDone(true);
+      autoBackup({ force: true });
     } catch (e) {
       alert("Erreur d'enregistrement : " + e.message);
     } finally {
@@ -313,7 +339,7 @@ function PinModal({ title, onSubmit, onCancel }) {
 // =====================================================================
 function Gerant(props) {
   const [tab, setTab] = useState("suivi");
-  const tabs = [["suivi", "Suivi"], ["planning", "Planning"], ["export", "Export compta"], ["salaries", "Salariés"]];
+  const tabs = [["suivi", "Suivi"], ["planning", "Planning"], ["export", "Export compta"], ["salaries", "Salariés"], ["sauvegarde", "Sauvegarde"]];
   return (
     <>
       <header className="pt-header">
@@ -332,6 +358,7 @@ function Gerant(props) {
       {tab === "planning" && <PlanningTab {...props} />}
       {tab === "export" && <ExportTab {...props} />}
       {tab === "salaries" && <Salaries {...props} />}
+      {tab === "sauvegarde" && <SauvegardeTab />}
     </>
   );
 }
@@ -518,7 +545,12 @@ function ExportTab({ employes, week }) {
             {data.recap.map((r) => (
               <div key={r.id} className="row-between">
                 <span>{nomComplet(r.employe)}</span>
-                <b className="gold">{fmtH(r.totalMois)}</b>
+                <span>
+                  <b className="gold">{fmtH(r.totalMois)}</b>
+                  {Object.entries(ABSENCES).filter(([k]) => r.absJours[k]).map(([k, a]) => (
+                    <small key={k} className="abs-pill" style={{ background: a.color }}>{r.absJours[k]} j {a.court}</small>
+                  ))}
+                </span>
               </div>
             ))}
             <p className="muted small">Heures comptées jour par jour sur {MOIS[month].toLowerCase()} uniquement (les semaines à cheval sont coupées).</p>
@@ -603,6 +635,74 @@ function Salaries({ employes, sorted, config }) {
           </div>
         </div>
       )}
+    </>
+  );
+}
+
+function SauvegardeTab() {
+  const [st, setSt] = useState(getStatus());
+  const [busy, setBusy] = useState(false);
+  const native = isNative();
+
+  const now = async () => {
+    setBusy(true);
+    setSt(await autoBackup({ force: true }));
+    setBusy(false);
+  };
+  const onRestore = async (ev) => {
+    const file = ev.target.files?.[0];
+    ev.target.value = "";
+    if (!file) return;
+    if (!confirm("Restaurer cette sauvegarde ? Tout le contenu actuel (salariés, plannings, signatures) sera remplacé.")) return;
+    try {
+      const date = await restoreBackup(file);
+      alert(`Sauvegarde du ${new Date(date).toLocaleString("fr-FR")} restaurée.`);
+    } catch (e) {
+      alert("Restauration impossible : " + e.message);
+    }
+  };
+
+  return (
+    <>
+      <div className="card">
+        <b>Sauvegarde automatique sur le téléphone</b>
+        {native ? (
+          <>
+            <p className="muted small">
+              À chaque ouverture de l'appli (au plus toutes les 3 h) et après chaque signature, une copie complète
+              (salariés, plannings, heures, signatures) et l'Excel du mois sont enregistrés dans la mémoire du téléphone :
+              <br /><b>Documents / {FOLDER}</b> (appli « Fichiers »). Les 60 derniers jours sont gardés.
+            </p>
+            {st ? (
+              <div className={`alert ${st.ok ? "ok" : ""}`}>
+                {st.ok
+                  ? `Dernière sauvegarde : ${new Date(st.date).toLocaleString("fr-FR")}`
+                  : `Échec de la dernière sauvegarde (${new Date(st.date).toLocaleString("fr-FR")}) : ${st.error}`}
+              </div>
+            ) : (
+              <p className="small">Pas encore de sauvegarde.</p>
+            )}
+            <button className="primary-btn full" disabled={busy} onClick={now}>{busy ? "Sauvegarde…" : "Sauvegarder maintenant"}</button>
+          </>
+        ) : (
+          <p className="muted small">La sauvegarde automatique fonctionne dans l'appli installée (APK). Ici, dans le navigateur, utilisez le bouton ci-dessous.</p>
+        )}
+      </div>
+
+      <div className="card">
+        <b>Copie manuelle</b>
+        <p className="muted small">Télécharger / envoyer un fichier de sauvegarde complet (à garder sur Drive, par mail…).</p>
+        <button className="ghost-btn" onClick={() => downloadBackup().catch((e) => alert(e.message))}>Exporter une sauvegarde</button>
+      </div>
+
+      <div className="card">
+        <b>Restaurer</b>
+        <p className="muted small">En cas de problème (téléphone perdu, données effacées) : choisir un fichier « sauvegarde-….json ».</p>
+        <label className="ghost-btn file-btn">
+          Choisir une sauvegarde
+          <input type="file" accept=".json,application/json" onChange={onRestore} hidden />
+        </label>
+      </div>
     </>
   );
 }

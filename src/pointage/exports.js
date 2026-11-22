@@ -3,7 +3,7 @@ import { jsPDF } from "jspdf";
 import { Capacitor } from "@capacitor/core";
 import {
   JOURS, MOIS, addDays, parseIso, iso, fmtDateLong, isoWeek, normWeek,
-  dayMinutes, weekMinutes, toDecimal, fmtH, mondayFromPlanning, mondaysOfMonth,
+  dayMinutes, dayMinutesRaw, weekMinutes, toDecimal, ABSENCES, fmtH, mondayFromPlanning, mondaysOfMonth,
 } from "./time.js";
 
 const nomComplet = (e) => `${(e.nom || "").toUpperCase()} ${e.prenom || ""}`.trim();
@@ -53,6 +53,8 @@ export function buildMonth({ year, month, employes, planning, pointages }) {
   Object.entries(employes).forEach(([id, e]) => {
     let totalMois = 0;
     let totalPrevuMois = 0;
+    const absJours = { CP: 0, MAL: 0, ABS: 0, FER: 0 };
+    const absMinutes = { CP: 0, MAL: 0, ABS: 0, FER: 0 };
     const semaines = [];
     mondays.forEach((mon) => {
       const pt = pointages?.[mon]?.[id];
@@ -69,15 +71,21 @@ export function buildMonth({ year, month, employes, planning, pointages }) {
         const prev = dayMinutes(pl[i]);
         minSemaineDansMois += min;
         totalPrevuMois += prev;
-        if (min > 0 || prev > 0) {
+        if (day.abs) {
+          absJours[day.abs] = (absJours[day.abs] || 0) + 1;
+          absMinutes[day.abs] = (absMinutes[day.abs] || 0) + dayMinutesRaw(day);
+        }
+        if (min > 0 || prev > 0 || day.abs) {
           rows.push({
             Salarié: nomComplet(e),
             Date: fmtDateLong(date),
             Jour: JOURS[i],
-            "Midi début": day.m.d, "Midi fin": day.m.f,
-            "Soir début": day.s.d, "Soir fin": day.s.f,
+            "Midi début": day.abs ? "" : day.m.d, "Midi fin": day.abs ? "" : day.m.f,
+            "Soir début": day.abs ? "" : day.s.d, "Soir fin": day.abs ? "" : day.s.f,
             "Heures prévues": toDecimal(prev),
             "Heures réalisées": toDecimal(min),
+            "Absence / congé": day.abs ? ABSENCES[day.abs]?.label || day.abs : "",
+            "Heures non travaillées": day.abs ? toDecimal(dayMinutesRaw(day)) : "",
             Statut: signe ? "Signé" : "NON SIGNÉ",
           });
         }
@@ -94,14 +102,14 @@ export function buildMonth({ year, month, employes, planning, pointages }) {
         days: reel || pl,
       });
     });
-    recap.push({ id, employe: e, semaines, totalMois, totalPrevuMois });
+    recap.push({ id, employe: e, semaines, totalMois, totalPrevuMois, absJours, absMinutes });
   });
   return { mondays, rows, recap };
 }
 
 // ---------- Export Excel pour le comptable ----------
 
-export function exportExcel(data, { year, month }) {
+export function excelBlob(data, { year, month }) {
   const { mondays, rows, recap } = data;
   const wb = XLSX.utils.book_new();
 
@@ -114,6 +122,10 @@ export function exportExcel(data, { year, month }) {
     });
     o[`Total ${MOIS[month]} (h)`] = toDecimal(r.totalMois);
     o["Total prévu (h)"] = toDecimal(r.totalPrevuMois);
+    Object.entries(ABSENCES).forEach(([k, a]) => {
+      o[`Jours ${a.label}`] = r.absJours[k] || 0;
+      o[`Heures ${a.label}`] = toDecimal(r.absMinutes[k] || 0);
+    });
     o["Semaines signées"] = `${r.semaines.filter((s) => s.signe).length}/${r.semaines.length}`;
     return o;
   });
@@ -122,7 +134,7 @@ export function exportExcel(data, { year, month }) {
   XLSX.utils.book_append_sheet(wb, ws1, "Récap mois");
 
   const ws2 = XLSX.utils.json_to_sheet(rows);
-  ws2["!cols"] = [{ wch: 22 }, { wch: 11 }, { wch: 10 }, ...Array(4).fill({ wch: 10 }), { wch: 14 }, { wch: 15 }, { wch: 11 }];
+  ws2["!cols"] = [{ wch: 22 }, { wch: 11 }, { wch: 10 }, ...Array(4).fill({ wch: 10 }), { wch: 14 }, { wch: 15 }, { wch: 16 }, { wch: 20 }, { wch: 11 }];
   XLSX.utils.book_append_sheet(wb, ws2, "Détail jours");
 
   const sig = [];
@@ -143,8 +155,13 @@ export function exportExcel(data, { year, month }) {
   XLSX.utils.book_append_sheet(wb, ws3, "Signatures");
 
   const out = XLSX.write(wb, { bookType: "xlsx", type: "array" });
-  const blob = new Blob([out], { type: "application/vnd.openxmlformats-officedocument.spreadsheetml.sheet" });
-  return saveFile(blob, `Pointage_${MOIS[month]}_${year}.xlsx`);
+  return new Blob([out], { type: "application/vnd.openxmlformats-officedocument.spreadsheetml.sheet" });
+}
+
+export const excelName = ({ year, month }) => `Pointage_${MOIS[month]}_${year}.xlsx`;
+
+export function exportExcel(data, opts) {
+  return saveFile(excelBlob(data, opts), excelName(opts));
 }
 
 // ---------- Export PDF (feuilles d'heures signées) ----------
@@ -162,6 +179,8 @@ export function exportPdf(data, { year, month }) {
     doc.setFontSize(12).text(nomComplet(r.employe), 14, y);
     doc.setFont("helvetica", "normal").setFontSize(10);
     doc.text(`Total du mois : ${fmtH(r.totalMois)} (${toDecimal(r.totalMois).toString().replace(".", ",")} h)`, 196, y, { align: "right" });
+    const abs = Object.entries(ABSENCES).filter(([k]) => r.absJours[k]).map(([k, a]) => `${a.label} : ${r.absJours[k]} j`);
+    if (abs.length) { y += 5; doc.text(abs.join("   ·   "), 196, y, { align: "right" }); }
     y += 6;
 
     r.semaines.forEach((s) => {
@@ -181,8 +200,15 @@ export function exportPdf(data, { year, month }) {
       y += 5;
       s.days.forEach((d, i) => {
         const min = dayMinutes(d);
-        if (!min) return;
         const date = addDays(m, i);
+        if (d.abs) {
+          doc.text(`${JOURS[i]} ${fmtDateLong(date).slice(0, 5)}`, 18, y);
+          doc.setFont("helvetica", "bold").text(ABSENCES[d.abs]?.label || d.abs, 60, y);
+          doc.setFont("helvetica", "normal");
+          y += 4.6;
+          return;
+        }
+        if (!min) return;
         const parts = [];
         if (d.m.d && d.m.f) parts.push(`${d.m.d}-${d.m.f}`);
         if (d.s.d && d.s.f) parts.push(`${d.s.d}-${d.s.f}`);

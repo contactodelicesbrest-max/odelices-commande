@@ -95,6 +95,18 @@ Appli séparée pour que chaque salarié **vérifie et signe ses heures chaque f
   - **PDF** : feuilles d'heures avec les signatures (preuve en cas de contrôle).
   - Sur le téléphone, le menu de partage s'ouvre (Gmail, WhatsApp, Drive…) pour l'envoyer directement au comptable.
 - **Salariés** : ajouter / modifier / supprimer, code personnel facultatif (pour qu'un salarié ne puisse pas signer à la place d'un autre).
+- **Sauvegarde** : état de la sauvegarde automatique, copie manuelle, restauration.
+
+### Congés payés / absences
+Sur chaque jour, un menu permet de choisir **Travail / CP / Maladie / Absent / Férié** (le gérant dans le Planning, ou le salarié au moment de signer). Le jour n'est alors pas compté en heures travaillées ; les heures qui étaient prévues ce jour-là sont indiquées comme « heures non travaillées ». L'export Excel donne, pour chaque salarié, le nombre de **jours** et d'**heures** de CP, maladie, absence et férié du mois, et le détail jour par jour.
+
+### Sauvegarde automatique sur le téléphone
+Dans l'APK, à chaque ouverture (au plus toutes les 3 h) et après chaque signature, l'appli enregistre dans la mémoire du téléphone, dossier **Documents/ODelices-Pointage** (appli « Fichiers ») :
+- `sauvegarde-AAAA-MM-JJ.json` : copie complète (salariés, plannings, heures, signatures) — 60 derniers jours gardés ;
+- `derniere-sauvegarde.json` : la plus récente ;
+- `Pointage_<Mois>_<Année>.xlsx` : l'export comptable du mois en cours et du mois précédent, toujours à jour.
+
+Pour restaurer : Gérant → Sauvegarde → « Choisir une sauvegarde ».
 
 Les données sont dans la même base Firebase que l'appli de commande (dossier `pointage`). Le planning de novembre 2026 (fichier Excel) est chargé automatiquement à la première ouverture.
 

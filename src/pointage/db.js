@@ -24,6 +24,13 @@ export async function read(path) {
   return snap.exists() ? snap.val() : null;
 }
 
+export async function readAll() {
+  const snap = await get(ref(db, ROOT));
+  return snap.exists() ? snap.val() : null;
+}
+
+export const writeAll = (value) => set(ref(db, ROOT), value);
+
 export const write = (path, value) => set(ref(db, p(path)), value);
 export const patch = (path, value) => update(ref(db, p(path)), value);
 export const del = (path) => remove(ref(db, p(path)));
