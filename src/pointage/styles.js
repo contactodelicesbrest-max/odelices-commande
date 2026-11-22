@@ -39,6 +39,11 @@ html, body { margin:0; background: var(--bg); }
 .h-abs { grid-column: span 2; color: #fff; font-weight: 700; font-size: 14px; border-radius: 8px; padding: 10px; text-align: center; }
 .h-abs small { font-weight: 400; opacity: .9; }
 .abs-pill { color:#fff; font-size: 11px; font-weight: 700; padding: 2px 7px; border-radius: 999px; margin-left: 6px; }
+.cost-grid { display:grid; grid-template-columns: 1.1fr 1fr 1fr 1fr; gap: 6px; padding: 7px 2px; border-bottom: 1px solid var(--border); font-size: 13.5px; align-items: center; }
+.cost-grid > :not(:first-child) { text-align: right; }
+.cost-grid.off { opacity: .5; }
+.cost-head { font-size: 11px; text-transform: uppercase; letter-spacing: .08em; color: var(--gold); font-weight: 700; margin-top: 8px; }
+.cost-tot { border-bottom: none; font-weight: 700; }
 .h-slot { display:flex; flex-direction:column; gap: 4px; }
 .h-tot { text-align:right; font-weight: 700; font-size: 13px; display:flex; flex-direction:column; }
 .h-tot small { font-size: 11px; } .plus { color: #6fd08a; } .minus { color: #ff8a73; }

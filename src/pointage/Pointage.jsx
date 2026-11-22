@@ -6,6 +6,7 @@ import {
 } from "./time.js";
 import { buildMonth, exportExcel, exportPdf, parsePlanningFile } from "./exports.js";
 import SignaturePad from "./SignaturePad.jsx";
+import { analyseSemaine, cfgOf, coutFactor, smicNet, euro, tauxNetOf, contratOf, TRANCHE_LABELS, DEFAULT_CFG } from "./paie.js";
 import { autoBackup, downloadBackup, restoreBackup, getStatus, isNative, FOLDER } from "./backup.js";
 import { styles } from "./styles.js";
 
@@ -339,7 +340,7 @@ function PinModal({ title, onSubmit, onCancel }) {
 // =====================================================================
 function Gerant(props) {
   const [tab, setTab] = useState("suivi");
-  const tabs = [["suivi", "Suivi"], ["planning", "Planning"], ["export", "Export compta"], ["salaries", "Salariés"], ["sauvegarde", "Sauvegarde"]];
+  const tabs = [["suivi", "Suivi"], ["planning", "Planning"], ["couts", "Coûts"], ["export", "Export compta"], ["salaries", "Salariés"], ["sauvegarde", "Sauvegarde"]];
   return (
     <>
       <header className="pt-header">
@@ -356,6 +357,7 @@ function Gerant(props) {
       </div>
       {tab === "suivi" && <Suivi {...props} />}
       {tab === "planning" && <PlanningTab {...props} />}
+      {tab === "couts" && <CoutsTab {...props} />}
       {tab === "export" && <ExportTab {...props} />}
       {tab === "salaries" && <Salaries {...props} />}
       {tab === "sauvegarde" && <SauvegardeTab />}
@@ -502,7 +504,7 @@ function PlanningTab({ week, setWeek, employes, sorted, planning }) {
   );
 }
 
-function ExportTab({ employes, week }) {
+function ExportTab({ employes, week, config }) {
   const m = parseIso(week);
   const [ym, setYm] = useState(`${m.getFullYear()}-${String(m.getMonth() + 1).padStart(2, "0")}`);
   const [busy, setBusy] = useState(false);
@@ -520,10 +522,10 @@ function ExportTab({ employes, week }) {
         planning[w] = await read(`planning/${w}`);
         pointages[w] = await read(`pointages/${w}`);
       }));
-      if (alive) setData(buildMonth({ year, month, employes, planning, pointages }));
+      if (alive) setData(buildMonth({ year, month, employes, planning, pointages, config }));
     })();
     return () => { alive = false; };
-  }, [ym, employes]);
+  }, [ym, employes, config]);
 
   const run = async (fn) => {
     setBusy(true);
@@ -550,9 +552,21 @@ function ExportTab({ employes, week }) {
                   {Object.entries(ABSENCES).filter(([k]) => r.absJours[k]).map(([k, a]) => (
                     <small key={k} className="abs-pill" style={{ background: a.color }}>{r.absJours[k]} j {a.court}</small>
                   ))}
+                  <br />
+                  <small className="muted">
+                    Coût {euro(r.paie.cout)}
+                    {Object.entries(TRANCHE_LABELS).filter(([k]) => r.paie.parts[k]).map(([k, l]) => ` · ${l.replace("H. ", "")} : ${fmtH(r.paie.parts[k])}`).join("")}
+                    {` · ${r.paie.repas} repas`}
+                  </small>
                 </span>
               </div>
             ))}
+            {data.recap.some((r) => r.paie.alertes.length) && (
+              <div className="alert">
+                <b>⚠ Points à vérifier (droit du travail)</b>
+                <ul>{data.recap.flatMap((r) => r.paie.alertes.map((a, i) => <li key={r.id + i}>{nomComplet(r.employe)} — {a}</li>))}</ul>
+              </div>
+            )}
             <p className="muted small">Heures comptées jour par jour sur {MOIS[month].toLowerCase()} uniquement (les semaines à cheval sont coupées).</p>
           </div>
 
@@ -585,7 +599,7 @@ function Salaries({ employes, sorted, config }) {
     if (!e.nom.trim()) return alert("Le nom est obligatoire.");
     if (e.pin && !/^\d{4,6}$/.test(e.pin)) return alert("Le code doit faire 4 à 6 chiffres.");
     const key = id || slug(`${e.nom}_${e.prenom}`) + (employes[slug(`${e.nom}_${e.prenom}`)] ? "_" + Date.now() : "");
-    await write(`employes/${key}`, { nom: e.nom.trim().toUpperCase(), prenom: e.prenom.trim(), pin: e.pin || "", contrat: e.contrat || "" });
+    await write(`employes/${key}`, { nom: e.nom.trim().toUpperCase(), prenom: e.prenom.trim(), pin: e.pin || "", contrat: e.contrat || "", tauxNet: e.tauxNet || "", horsPaie: !!e.horsPaie });
     setEdit(null);
   };
   const remove = async (id) => {
@@ -599,15 +613,15 @@ function Salaries({ employes, sorted, config }) {
         <div key={id} className="card row-between">
           <div>
             <b>{nomComplet(e)}</b>
-            <div className="muted small">{e.pin ? "Code perso ✓" : "Sans code"}{e.contrat ? ` · contrat ${e.contrat} h/sem` : ""}</div>
+            <div className="muted small">{e.pin ? "Code perso ✓" : "Sans code"}{e.contrat ? ` · contrat ${e.contrat} h/sem` : " · contrat 35 h (défaut)"}{e.tauxNet ? ` · ${e.tauxNet} €/h net` : ""}{e.horsPaie ? " · hors paie" : ""}</div>
           </div>
           <div>
-            <button className="link-btn" onClick={() => setEdit({ id, ...e, pin: e.pin || "", contrat: e.contrat || "" })}>Modifier</button>
+            <button className="link-btn" onClick={() => setEdit({ id, ...e, pin: e.pin || "", contrat: e.contrat || "", tauxNet: e.tauxNet || "", horsPaie: !!e.horsPaie })}>Modifier</button>
             <button className="link-btn red" onClick={() => remove(id)}>Suppr.</button>
           </div>
         </div>
       ))}
-      <button className="primary-btn full" onClick={() => setEdit({ nom: "", prenom: "", pin: "", contrat: "" })}>+ Ajouter un salarié</button>
+      <button className="primary-btn full" onClick={() => setEdit({ nom: "", prenom: "", pin: "", contrat: "", tauxNet: "", horsPaie: false })}>+ Ajouter un salarié</button>
 
       <div className="card">
         <b>Code gérant</b>
@@ -630,6 +644,12 @@ function Salaries({ employes, sorted, config }) {
             <input className="input" inputMode="numeric" maxLength={6} value={edit.pin} onChange={(e) => setEdit({ ...edit, pin: e.target.value.replace(/\D/g, "") })} />
             <label className="lbl">Heures contrat / semaine (facultatif)</label>
             <input className="input" inputMode="decimal" value={edit.contrat} onChange={(e) => setEdit({ ...edit, contrat: e.target.value.replace(",", ".") })} />
+            <label className="lbl">Taux horaire net (€)</label>
+            <input className="input" inputMode="decimal" placeholder="défaut des paramètres" value={edit.tauxNet} onChange={(e) => setEdit({ ...edit, tauxNet: e.target.value.replace(",", ".") })} />
+            <label className="check">
+              <input type="checkbox" checked={!!edit.horsPaie} onChange={(e) => setEdit({ ...edit, horsPaie: e.target.checked })} />
+              Hors paie (gérant / associé non salarié) : signe ses heures mais n'apparaît pas dans l'export compta ni les coûts.
+            </label>
             <button className="primary-btn full" onClick={save}>Enregistrer</button>
             <button className="link-btn" onClick={() => setEdit(null)}>Annuler</button>
           </div>
@@ -702,6 +722,107 @@ function SauvegardeTab() {
           Choisir une sauvegarde
           <input type="file" accept=".json,application/json" onChange={onRestore} hidden />
         </label>
+      </div>
+    </>
+  );
+}
+
+// =====================================================================
+function CoutsTab({ week, setWeek, sorted, planning, pointages, config }) {
+  const cfg = cfgOf(config);
+  const [form, setForm] = useState(cfg);
+  const [open, setOpen] = useState(false);
+  const m = parseIso(week);
+  const liste = sorted.filter(([, e]) => !e.horsPaie);
+
+  const saveCfg = async () => {
+    const clean = {};
+    Object.keys(DEFAULT_CFG).forEach((k) => (clean[k] = Number(String(form[k]).replace(",", ".")) || DEFAULT_CFG[k]));
+    await patch("config", { paie: clean });
+    setOpen(false);
+  };
+
+  let totalSemaine = 0;
+
+  return (
+    <>
+      <WeekNav week={week} setWeek={setWeek} />
+      <p className="muted small">
+        Coût employeur estimé = heures × taux net × majorations, puis net → brut (÷ {(1 - cfg.tauxSal / 100).toFixed(2)}) → coût (× {(1 + cfg.tauxPat / 100).toFixed(2)}).
+        1 € net ≈ <b>{coutFactor(cfg).toFixed(2)} €</b> de coût. SMIC net estimé : {smicNet(cfg)} €/h.
+      </p>
+
+      {liste.map(([id, e]) => {
+        const pt = pointages[id];
+        const days = pt ? normWeek(pt.days) : normWeek(planning[id]?.days);
+        const an = analyseSemaine(days, e, cfg);
+        totalSemaine += an.tot.cout;
+        const hs = Object.entries(TRANCHE_LABELS).filter(([k]) => an.tot.parts[k]);
+        return (
+          <div key={id} className="card">
+            <div className="row-between">
+              <b>{nomComplet(e)}</b>
+              <span className="muted small">{an.taux} €/h net · contrat {an.contrat} h · {pt?.signature ? "heures signées" : "planning"}</span>
+            </div>
+            <div className="cost-grid cost-head"><span>Jour</span><span>Heures</span><span>Net</span><span>Coût</span></div>
+            {an.jours.map((j, i) => (
+              <div key={i} className={`cost-grid ${j.min || j.payeNonTravaille ? "" : "off"}`}>
+                <span>{JOURS_COURTS[i]} {fmtDate(addDays(m, i))}</span>
+                <span>
+                  {days[i].abs ? ABSENCES[days[i].abs]?.court : j.min ? fmtH(j.min) : "repos"}
+                  {Object.keys(j.parts).some((k) => k !== "normal") && <small className="plus"> dont HS</small>}
+                </span>
+                <span>{j.net ? euro(j.net) : "—"}</span>
+                <b>{j.cout ? euro(j.cout) : "—"}</b>
+              </div>
+            ))}
+            <div className="cost-grid cost-tot">
+              <span>Semaine</span><span>{fmtH(an.tot.min)}</span><span>{euro(an.tot.net)}</span><b className="gold">{euro(an.tot.cout)}</b>
+            </div>
+            {hs.length > 0 && <p className="small">{hs.map(([k, l]) => `${l} : ${fmtH(an.tot.parts[k])}`).join(" · ")}</p>}
+            <p className="muted small">
+              Coût moyen par jour travaillé : <b>{euro(an.tot.cout / Math.max(1, an.jours.filter((j) => j.min).length))}</b>
+              {" "}· par heure : <b>{euro(an.tot.min ? an.tot.cout / (an.tot.min / 60) : 0)}</b> · {an.tot.repas} repas
+            </p>
+            {an.alertes.length > 0 && (
+              <div className="alert"><ul>{an.alertes.map((a, i) => <li key={i}>⚠ {a}</li>)}</ul></div>
+            )}
+          </div>
+        );
+      })}
+
+      <div className="card row-between">
+        <b>Total masse salariale de la semaine</b>
+        <b className="gold">{euro(totalSemaine)}</b>
+      </div>
+
+      <div className="card">
+        <div className="row-between">
+          <b>Paramètres de calcul</b>
+          <button className="link-btn" onClick={() => { setForm(cfg); setOpen(!open); }}>{open ? "Fermer" : "Modifier"}</button>
+        </div>
+        {open ? (
+          <>
+            {[
+              ["tauxNetDefaut", "Taux horaire net par défaut (€)"],
+              ["tauxSal", "Charges salariales (%) — env. 22 % pour un non-cadre"],
+              ["tauxPat", "Charges patronales après réduction générale (%) — demander au comptable"],
+              ["valeurRepas", "Valeur d'un repas, avantage en nature HCR (€)"],
+              ["smicBrut", "SMIC horaire brut (€)"],
+            ].map(([k, l]) => (
+              <div key={k}>
+                <label className="lbl">{l}</label>
+                <input className="input" inputMode="decimal" value={form[k]} onChange={(e) => setForm({ ...form, [k]: e.target.value })} />
+              </div>
+            ))}
+            <button className="primary-btn full mt" onClick={saveCfg}>Enregistrer</button>
+          </>
+        ) : (
+          <p className="muted small">
+            Taux net défaut {cfg.tauxNetDefaut} € · charges salariales {cfg.tauxSal} % · patronales {cfg.tauxPat} % · repas {cfg.valeurRepas} € · SMIC brut {cfg.smicBrut} €.
+            Le taux net de chaque salarié se règle dans l'onglet Salariés.
+          </p>
+        )}
       </div>
     </>
   );

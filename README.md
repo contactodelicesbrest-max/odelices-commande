@@ -97,6 +97,14 @@ Appli séparée pour que chaque salarié **vérifie et signe ses heures chaque f
 - **Salariés** : ajouter / modifier / supprimer, code personnel facultatif (pour qu'un salarié ne puisse pas signer à la place d'un autre).
 - **Sauvegarde** : état de la sauvegarde automatique, copie manuelle, restauration.
 
+### Variables de paie et coûts
+- **Export Excel → onglet « Variables de paie »** (une ligne par salarié, ce que le comptable saisit) : base mensualisée, heures travaillées, **heures sup HCR** (+10 % de la 36e à la 39e h, +20 % de la 40e à la 43e, +50 % au-delà) ou **heures complémentaires** pour un temps partiel (+10 % / +25 %), jours CP / maladie / absence / férié, **nombre de repas** (avantage en nature), net / brut / coût employeur estimés, alertes. Les heures sup sont calculées par semaine (lundi → dimanche) et rattachées au mois où la semaine se termine.
+- Onglets « Semaines » (détail des heures sup par semaine) et « Paramètres » (taux utilisés).
+- **Gérant → Coûts** : pour chaque salarié, coût par jour et par semaine (net et coût employeur), coût moyen par jour travaillé et par heure, total de la masse salariale de la semaine.
+- Calcul : heures × taux horaire net × majorations → brut (net ÷ (1 − charges salariales)) → coût employeur (brut × (1 + charges patronales)). Les taux se règlent dans *Coûts → Paramètres de calcul* ; le taux net de chaque salarié dans *Salariés*. **Ce sont des estimations : demander au comptable le taux de charges patronales réel** (avec la réduction générale sur les bas salaires).
+- **Alertes** droit du travail : plus de 48 h dans la semaine, journée de plus de 11 h 30, moins de 2 jours de repos, taux net sous le SMIC.
+- Un salarié coché **« Hors paie »** (gérant / associé) peut signer ses heures mais n'apparaît ni dans l'export compta ni dans les coûts.
+
 ### Congés payés / absences
 Sur chaque jour, un menu permet de choisir **Travail / CP / Maladie / Absent / Férié** (le gérant dans le Planning, ou le salarié au moment de signer). Le jour n'est alors pas compté en heures travaillées ; les heures qui étaient prévues ce jour-là sont indiquées comme « heures non travaillées ». L'export Excel donne, pour chaque salarié, le nombre de **jours** et d'**heures** de CP, maladie, absence et férié du mois, et le détail jour par jour.
 

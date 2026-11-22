@@ -5,6 +5,7 @@ import {
   JOURS, MOIS, addDays, parseIso, iso, fmtDateLong, isoWeek, normWeek,
   dayMinutes, dayMinutesRaw, weekMinutes, toDecimal, ABSENCES, fmtH, mondayFromPlanning, mondaysOfMonth,
 } from "./time.js";
+import { analyseSemaine, cfgOf, contratOf, round2, TRANCHE_LABELS } from "./paie.js";
 
 const nomComplet = (e) => `${(e.nom || "").toUpperCase()} ${e.prenom || ""}`.trim();
 
@@ -45,12 +46,16 @@ export async function saveFile(blob, filename) {
  * Pour chaque salarié et chaque jour du mois : heures signées (pointage)
  * ou, à défaut, heures prévues au planning (marquées « non signé »).
  */
-export function buildMonth({ year, month, employes, planning, pointages }) {
+export function buildMonth({ year, month, employes, planning, pointages, config }) {
+  const cfg = cfgOf(config);
   const mondays = mondaysOfMonth(year, month);
   const rows = []; // détail par jour
   const recap = [];
+  const horsPaie = [];
 
-  Object.entries(employes).forEach(([id, e]) => {
+  Object.entries(employes || {}).forEach(([id, e]) => {
+    if (e.horsPaie) { horsPaie.push(e); return; }
+    const paie = { net: 0, brut: 0, cout: 0, repas: 0, parts: {}, alertes: [] };
     let totalMois = 0;
     let totalPrevuMois = 0;
     const absJours = { CP: 0, MAL: 0, ABS: 0, FER: 0 };
@@ -63,10 +68,21 @@ export function buildMonth({ year, month, employes, planning, pointages }) {
       const signe = !!pt?.signature;
       let minSemaineDansMois = 0;
       const monDate = parseIso(mon);
+      const an = analyseSemaine(reel || pl, e, cfg);
+      // Heures sup / complémentaires : semaine rattachée au mois où elle se termine (dimanche)
+      const finDansMois = addDays(monDate, 6).getMonth() === month;
+      if (finDansMois) {
+        Object.entries(an.tot.parts).forEach(([k, v]) => (paie.parts[k] = (paie.parts[k] || 0) + v));
+        an.alertes.forEach((a) => paie.alertes.push(`Sem. du ${fmtDateLong(monDate).slice(0, 5)} : ${a}`));
+      }
       for (let i = 0; i < 7; i++) {
         const date = addDays(monDate, i);
         if (date.getMonth() !== month) continue;
         const day = reel ? reel[i] : pl[i];
+        paie.net += an.jours[i].net;
+        paie.brut += an.jours[i].brut;
+        paie.cout += an.jours[i].cout;
+        paie.repas += an.jours[i].repas;
         const min = dayMinutes(day);
         const prev = dayMinutes(pl[i]);
         minSemaineDansMois += min;
@@ -100,18 +116,94 @@ export function buildMonth({ year, month, employes, planning, pointages }) {
         commentaire: pt?.commentaire || "",
         signature: pt?.signature || null,
         days: reel || pl,
+        analyse: an,
+        finDansMois,
       });
     });
-    recap.push({ id, employe: e, semaines, totalMois, totalPrevuMois, absJours, absMinutes });
+    ["net", "brut", "cout"].forEach((k) => (paie[k] = round2(paie[k])));
+    recap.push({ id, employe: e, semaines, totalMois, totalPrevuMois, absJours, absMinutes, paie, contrat: contratOf(e), taux: semaines[0]?.analyse.taux });
   });
-  return { mondays, rows, recap };
+  return { mondays, rows, recap, horsPaie, cfg };
 }
 
 // ---------- Export Excel pour le comptable ----------
 
 export function excelBlob(data, { year, month }) {
-  const { mondays, rows, recap } = data;
+  const { rows, recap, cfg } = data;
   const wb = XLSX.utils.book_new();
+
+  // 1) Variables de paie : ce que le comptable saisit directement
+  const vars = recap.map((r) => {
+    const o = {
+      Salarié: nomComplet(r.employe),
+      "Contrat (h/sem)": r.contrat,
+      "Base mensualisée (h)": round2((r.contrat * 52) / 12),
+      [`Heures travaillées ${MOIS[month]}`]: toDecimal(r.totalMois),
+    };
+    Object.entries(TRANCHE_LABELS).forEach(([k, l]) => {
+      if (k.startsWith("hc") && r.contrat >= 35) return;
+      o[l] = toDecimal(r.paie.parts[k] || 0);
+    });
+    o["Jours CP"] = r.absJours.CP || 0;
+    o["Jours maladie"] = r.absJours.MAL || 0;
+    o["Heures maladie"] = toDecimal(r.absMinutes.MAL || 0);
+    o["Jours absence"] = r.absJours.ABS || 0;
+    o["Heures absence"] = toDecimal(r.absMinutes.ABS || 0);
+    o["Jours fériés chômés"] = r.absJours.FER || 0;
+    o["Nb repas (avantage nature)"] = r.paie.repas;
+    o["Valeur repas (€)"] = round2(r.paie.repas * cfg.valeurRepas);
+    o["Taux horaire net (€)"] = r.taux;
+    o["Net estimé (€)"] = r.paie.net;
+    o["Brut estimé (€)"] = r.paie.brut;
+    o["Coût employeur estimé (€)"] = r.paie.cout;
+    o["Semaines signées"] = `${r.semaines.filter((s) => s.signe).length}/${r.semaines.length}`;
+    o["Alertes"] = r.paie.alertes.join(" | ");
+    return o;
+  });
+  const ws0 = XLSX.utils.json_to_sheet(vars);
+  ws0["!cols"] = Object.keys(vars[0] || {}).map((k, i) => ({ wch: i === 0 ? 22 : k === "Alertes" ? 60 : 15 }));
+  XLSX.utils.book_append_sheet(wb, ws0, "Variables de paie");
+
+  // 2) Détail par semaine (heures sup)
+  const sem = [];
+  recap.forEach((r) =>
+    r.semaines.forEach((s) => {
+      const m = parseIso(s.mon);
+      const o = {
+        Salarié: nomComplet(r.employe),
+        Semaine: `S${isoWeek(m)} du ${fmtDateLong(m)} au ${fmtDateLong(addDays(m, 6))}`,
+        "Rattachée à": s.finDansMois ? MOIS[month] : "mois précédent",
+        "Heures travaillées": toDecimal(s.analyse.tot.min),
+        "Heures normales": toDecimal(s.analyse.tot.parts.normal || 0),
+      };
+      Object.entries(TRANCHE_LABELS).forEach(([k, l]) => (o[l] = toDecimal(s.analyse.tot.parts[k] || 0)));
+      o["Repas"] = s.analyse.tot.repas;
+      o["Coût employeur (€)"] = s.analyse.tot.cout;
+      o["Signé"] = s.signe ? "Oui" : "Non";
+      o["Alertes"] = s.analyse.alertes.join(" | ");
+      sem.push(o);
+    })
+  );
+  const wsS = XLSX.utils.json_to_sheet(sem);
+  wsS["!cols"] = Object.keys(sem[0] || {}).map((k, i) => ({ wch: i === 0 ? 22 : i === 1 ? 32 : k === "Alertes" ? 60 : 14 }));
+  XLSX.utils.book_append_sheet(wb, wsS, "Semaines");
+
+  // 3) Paramètres utilisés
+  const wsP = XLSX.utils.aoa_to_sheet([
+    ["Paramètres de calcul (estimations — le comptable fait foi)"],
+    ["Taux horaire net par défaut (€)", cfg.tauxNetDefaut],
+    ["Charges salariales (%)", cfg.tauxSal],
+    ["Charges patronales après réductions (%)", cfg.tauxPat],
+    ["Valeur d'un repas (€)", cfg.valeurRepas],
+    ["SMIC horaire brut (€)", cfg.smicBrut],
+    ["Heures sup temps plein (HCR)", "36e-39e h +10 %, 40e-43e h +20 %, 44e h et + +50 %"],
+    ["Heures complémentaires temps partiel", "+10 % jusqu'à 1/10e du contrat, +25 % au-delà"],
+    ["Rattachement des heures sup", "semaine rattachée au mois de son dimanche"],
+    ["Repas", "1 repas par service (midi / soir) travaillé"],
+    ...(data.horsPaie?.length ? [["Exclus (hors paie)", data.horsPaie.map(nomComplet).join(", ")]] : []),
+  ]);
+  wsP["!cols"] = [{ wch: 42 }, { wch: 60 }];
+  XLSX.utils.book_append_sheet(wb, wsP, "Paramètres");
 
   const recapRows = recap.map((r) => {
     const o = { Salarié: nomComplet(r.employe) };

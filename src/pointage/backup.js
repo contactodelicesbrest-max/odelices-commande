@@ -74,7 +74,7 @@ async function doBackup() {
         planning[w] = data.planning?.[w] || null;
         pointages[w] = data.pointages?.[w] || null;
       });
-      const m = buildMonth({ year, month, employes: data.employes || {}, planning, pointages });
+      const m = buildMonth({ year, month, employes: data.employes || {}, planning, pointages, config: data.config });
       const b64 = await blobToBase64(excelBlob(m, { year, month }));
       await Filesystem.writeFile({ path: `${FOLDER}/${excelName({ year, month })}`, data: b64, directory: Directory.Documents, recursive: true });
     }
