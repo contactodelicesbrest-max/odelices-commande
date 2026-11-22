@@ -368,3 +368,88 @@ export async function parsePlanningFile(file) {
   });
   return weeks;
 }
+
+// ---------- Récap de la semaine ----------
+
+/** Récap d'une semaine (lundi -> dimanche) pour tous les salariés. */
+export function buildWeekRecap({ mon, employes, planning, pointages, config }) {
+  const cfg = cfgOf(config);
+  const lignes = Object.entries(employes || {})
+    .filter(([, e]) => !e.horsPaie)
+    .sort((a, b) => nomComplet(a[1]).localeCompare(nomComplet(b[1])))
+    .map(([id, e]) => {
+      const pl = normWeek(planning?.[id]?.days);
+      const days = mergeWeek(pl, pointages?.[id]?.days);
+      const an = analyseSemaine(days, e, cfg);
+      const hs = Object.entries(an.tot.parts).filter(([k]) => k !== "normal").reduce((t, [, v]) => t + v, 0);
+      const absences = days.map((d, i) => (d.abs ? `${JOURS[i].slice(0, 3)} ${ABSENCES[d.abs]?.court || d.abs}` : null)).filter(Boolean);
+      return { id, employe: e, days, an, prevu: weekMinutes(pl), hs, absences, saisi: !!pointages?.[id]?.days };
+    });
+  const total = { min: 0, cout: 0, hs: 0 };
+  lignes.forEach((l) => { total.min += l.an.tot.min; total.cout += l.an.tot.cout; total.hs += l.hs; });
+  total.cout = round2(total.cout);
+  return { mon, lignes, total, cfg };
+}
+
+const eur = (n) => (n || 0).toLocaleString("fr-FR", { style: "currency", currency: "EUR" }).replace(/[\u202f\u00a0]/g, " ");
+
+/** Texte court à envoyer par WhatsApp / SMS. */
+export function weekRecapText(r) {
+  const m = parseIso(r.mon);
+  const out = [`📋 Récap semaine ${isoWeek(m)} — du ${fmtDateLong(m).slice(0, 5)} au ${fmtDateLong(addDays(m, 6)).slice(0, 5)}`, ""];
+  r.lignes.forEach((l) => {
+    let t = `• ${nomComplet(l.employe)} : ${fmtH(l.an.tot.min)}`;
+    if (l.hs) t += ` (dont ${fmtH(l.hs)} sup)`;
+    const ecart = l.an.tot.min - l.prevu;
+    if (ecart) t += ` · ${ecart > 0 ? "+" : ""}${fmtH(ecart)} vs planning`;
+    if (l.absences.length) t += ` · ${l.absences.join(", ")}`;
+    t += ` · coût ${eur(l.an.tot.cout)}`;
+    out.push(t);
+    l.an.alertes.forEach((a) => out.push(`   ⚠ ${a}`));
+  });
+  out.push("", `Total : ${fmtH(r.total.min)} · coût employeur estimé ${eur(r.total.cout)}`);
+  return out.join("\n");
+}
+
+export function weekRecapPdfBlob(r) {
+  const doc = new jsPDF({ unit: "mm", format: "a4", orientation: "landscape" });
+  const m = parseIso(r.mon);
+  doc.setFont("helvetica", "bold").setFontSize(15);
+  doc.text(`Récap semaine ${isoWeek(m)} — du ${fmtDateLong(m)} au ${fmtDateLong(addDays(m, 6))}`, 14, 16);
+  const cols = [14, 62, 92, 122, 152, 182, 212, 242];
+  let y = 28;
+  doc.setFontSize(9);
+  ["Salarié", ...JOURS.map((j) => j.slice(0, 3))].forEach((h, i) => i === 0 ? doc.text(h, cols[0], y) : null);
+  JOURS.forEach((j, i) => doc.text(`${j.slice(0, 3)} ${fmtDateLong(addDays(m, i)).slice(0, 5)}`, 62 + i * 26, y));
+  doc.text("Total", 246, y); doc.text("Coût", 268, y);
+  doc.setFont("helvetica", "normal");
+  y += 3;
+  r.lignes.forEach((l) => {
+    doc.setDrawColor(200).line(14, y, 283, y);
+    y += 5;
+    doc.setFont("helvetica", "bold").text(nomComplet(l.employe), 14, y);
+    doc.setFont("helvetica", "normal");
+    l.days.forEach((d, i) => {
+      const x = 62 + i * 26;
+      if (d.abs) { doc.text(ABSENCES[d.abs]?.court || d.abs, x, y); return; }
+      const lines = [];
+      if (d.m.d && d.m.f) lines.push(`${d.m.d}-${d.m.f}`);
+      if (d.s.d && d.s.f) lines.push(`${d.s.d}-${d.s.f}`);
+      if (!lines.length) lines.push("repos");
+      lines.forEach((t, k) => doc.text(t, x, y + k * 4));
+    });
+    doc.setFont("helvetica", "bold").text(fmtH(l.an.tot.min), 246, y);
+    doc.setFont("helvetica", "normal").text(eur(l.an.tot.cout), 268, y);
+    if (l.hs) doc.setFontSize(8).text(`dont ${fmtH(l.hs)} sup`, 246, y + 4).setFontSize(9);
+    y += 9;
+    l.an.alertes.forEach((a) => { doc.setTextColor(200, 40, 40).setFontSize(8).text(`⚠ ${a}`.replace("⚠", "!"), 62, y); doc.setTextColor(0).setFontSize(9); y += 4; });
+    if (y > 185) { doc.addPage(); y = 20; }
+  });
+  doc.line(14, y, 283, y);
+  y += 6;
+  doc.setFont("helvetica", "bold").setFontSize(11).text(`Total : ${fmtH(r.total.min)} — coût employeur estimé ${eur(r.total.cout)}`, 14, y);
+  doc.setFont("helvetica", "normal").setFontSize(8).text("Heures saisies par les salariés, sinon planning. Montants estimés (le comptable fait foi).", 14, y + 5);
+  return doc.output("blob");
+}
+
+export const weekRecapName = (mon) => `Recap_semaine_${isoWeek(parseIso(mon))}_${mon}.pdf`;

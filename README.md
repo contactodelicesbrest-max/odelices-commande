@@ -97,6 +97,13 @@ Appli séparée pour que chaque salarié **vérifie et signe ses heures une fois
 - **Salariés** : ajouter / modifier / supprimer, code personnel facultatif (pour qu'un salarié ne puisse pas signer à la place d'un autre).
 - **Sauvegarde** : état de la sauvegarde automatique, copie manuelle, restauration.
 
+### Récap de fin de semaine
+- **Gérant → Récap semaine** : pour chaque salarié, heures jour par jour, total, écart avec le planning, heures sup, absences, coût estimé et alertes ; total de la semaine.
+- **Envoyer le récap** : texte prêt à envoyer par WhatsApp / SMS / mail. **Récap en PDF** : tableau de la semaine.
+- Le samedi, dimanche et lundi, un bandeau « Le récap de la semaine est prêt » s'affiche dans l'espace gérant.
+- Dans l'APK, le PDF du récap est enregistré automatiquement chaque fin de semaine dans **Documents/ODelices-Pointage/Recaps**.
+- Côté salarié, le total de chaque semaine s'affiche sous la semaine au moment de la signature mensuelle.
+
 ### Variables de paie et coûts
 - **Export Excel → onglet « Variables de paie »** (une ligne par salarié, ce que le comptable saisit) : base mensualisée, heures travaillées, **heures sup HCR** (+10 % de la 36e à la 39e h, +20 % de la 40e à la 43e, +50 % au-delà) ou **heures complémentaires** pour un temps partiel (+10 % / +25 %), jours CP / maladie / absence / férié, **nombre de repas** (avantage en nature), net / brut / coût employeur estimés, alertes. Les heures sup sont calculées par semaine (lundi → dimanche) et rattachées au mois où la semaine se termine.
 - Onglets « Semaines » (détail des heures sup par semaine) et « Paramètres » (taux utilisés).

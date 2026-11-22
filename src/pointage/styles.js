@@ -45,6 +45,12 @@ html, body { margin:0; background: var(--bg); }
 .cost-head { font-size: 11px; text-transform: uppercase; letter-spacing: .08em; color: var(--gold); font-weight: 700; margin-top: 8px; }
 .cost-tot { border-bottom: none; font-weight: 700; }
 .week-title { font-size: 12px; text-transform: uppercase; letter-spacing: .08em; color: var(--muted); font-weight: 700; margin: 16px 0 -6px; }
+.week-sub { text-align: right; font-size: 13px; margin: -4px 4px 0; }
+.banner { width: 100%; background: rgba(61,138,156,.18); border: 1px solid var(--sea); color: var(--text); border-radius: 12px; padding: 12px; font-weight: 700; font-size: 14px; margin-bottom: 12px; cursor: pointer; text-align: left; }
+.recap-days { display: grid; grid-template-columns: repeat(7, 1fr); gap: 4px; margin: 10px 0 6px; }
+.recap-day { background: var(--raised); border-radius: 8px; padding: 6px 2px; display: flex; flex-direction: column; align-items: center; gap: 2px; font-size: 12px; }
+.recap-day.off { opacity: .45; }
+.recap-day small { color: var(--muted); font-size: 10.5px; }
 .h-slot { display:flex; flex-direction:column; gap: 4px; }
 .h-tot { text-align:right; font-weight: 700; font-size: 13px; display:flex; flex-direction:column; }
 .h-tot small { font-size: 11px; } .plus { color: #6fd08a; } .minus { color: #ff8a73; }

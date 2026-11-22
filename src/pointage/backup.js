@@ -6,7 +6,8 @@
 import { Capacitor } from "@capacitor/core";
 import { readAll, writeAll } from "./db.js";
 import { iso, mondaysOfMonth } from "./time.js";
-import { buildMonth, excelBlob, excelName, saveFile } from "./exports.js";
+import { buildMonth, excelBlob, excelName, saveFile, buildWeekRecap, weekRecapPdfBlob, weekRecapName } from "./exports.js";
+import { addDays, mondayOf } from "./time.js";
 
 export const FOLDER = "ODelices-Pointage";
 const KEEP = 60;
@@ -77,6 +78,15 @@ async function doBackup() {
       const m = buildMonth({ year, month, employes: data.employes || {}, planning, pointages, signatures: data.signatures?.[`${year}-${String(month + 1).padStart(2, "0")}`], config: data.config });
       const b64 = await blobToBase64(excelBlob(m, { year, month }));
       await Filesystem.writeFile({ path: `${FOLDER}/${excelName({ year, month })}`, data: b64, directory: Directory.Documents, recursive: true });
+    }
+
+    // Récap PDF de la semaine écoulée (et de la semaine en cours le samedi / dimanche)
+    const weeks = [iso(addDays(mondayOf(now), -7))];
+    if ([6, 0].includes(now.getDay())) weeks.push(iso(mondayOf(now)));
+    for (const mon of weeks) {
+      const r = buildWeekRecap({ mon, employes: data.employes || {}, planning: data.planning?.[mon], pointages: data.pointages?.[mon], config: data.config });
+      const b64r = await blobToBase64(weekRecapPdfBlob(r));
+      await Filesystem.writeFile({ path: `${FOLDER}/Recaps/${weekRecapName(mon)}`, data: b64r, directory: Directory.Documents, recursive: true });
     }
 
     // Ne garder que les KEEP sauvegardes journalières les plus récentes

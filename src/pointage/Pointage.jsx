@@ -5,7 +5,8 @@ import {
   normWeek, emptyWeek, dayMinutes, dayMinutesRaw, weekMinutes, fmtH, mondaysOfMonth, ABSENCES,
   ymOf, parseYm, monthLabel, addMonths, defaultSignMonth, inMonth, mergeWeek,
 } from "./time.js";
-import { buildMonth, exportExcel, exportPdf, parsePlanningFile } from "./exports.js";
+import { buildMonth, exportExcel, exportPdf, parsePlanningFile, buildWeekRecap, weekRecapText, weekRecapPdfBlob, weekRecapName, saveFile } from "./exports.js";
+import { Capacitor } from "@capacitor/core";
 import SignaturePad from "./SignaturePad.jsx";
 import { analyseSemaine, cfgOf, coutFactor, smicNet, euro, tauxNetOf, contratOf, TRANCHE_LABELS, DEFAULT_CFG } from "./paie.js";
 import { autoBackup, downloadBackup, restoreBackup, getStatus, isNative, FOLDER } from "./backup.js";
@@ -339,6 +340,7 @@ function SignScreen({ ym, id, employe, monthData, onBack }) {
         <div key={w.mon}>
           <p className="week-title">{weekLabel(w.mon)}</p>
           <HoursEditor week={w.mon} days={w.days} onChange={(d) => setDays(w.mon, d)} readOnly={signed} compare={w.planned} onlyMonth={month} />
+          <p className="week-sub">Total de la semaine : <b>{fmtH(weekMinutes(w.days))}</b>{weekMinutes(w.days) !== weekMinutes(w.planned) && <span className="muted"> (prévu {fmtH(weekMinutes(w.planned))})</span>}</p>
         </div>
       ))}
 
@@ -406,7 +408,7 @@ function PinModal({ title, onSubmit, onCancel }) {
 // =====================================================================
 function Gerant(props) {
   const [tab, setTab] = useState("suivi");
-  const tabs = [["suivi", "Suivi"], ["planning", "Planning"], ["couts", "Coûts"], ["export", "Export compta"], ["salaries", "Salariés"], ["sauvegarde", "Sauvegarde"]];
+  const tabs = [["suivi", "Suivi"], ["recap", "Récap semaine"], ["planning", "Planning"], ["couts", "Coûts"], ["export", "Export compta"], ["salaries", "Salariés"], ["sauvegarde", "Sauvegarde"]];
   return (
     <>
       <header className="pt-header">
@@ -421,7 +423,13 @@ function Gerant(props) {
           <button key={k} className={`tab ${tab === k ? "tab-on" : ""}`} onClick={() => setTab(k)}>{l}</button>
         ))}
       </div>
+      {tab !== "recap" && finDeSemaine() && (
+        <button className="banner" onClick={() => { props.setWeek(semaineARecap()); setTab("recap"); }}>
+          📋 Le récap de la semaine est prêt — voir / envoyer
+        </button>
+      )}
       {tab === "suivi" && <Suivi {...props} />}
+      {tab === "recap" && <RecapTab {...props} />}
       {tab === "planning" && <PlanningTab {...props} />}
       {tab === "couts" && <CoutsTab {...props} />}
       {tab === "export" && <ExportTab {...props} />}
@@ -894,6 +902,63 @@ function CoutsTab({ week, setWeek, sorted, planning, pointages, config }) {
           </p>
         )}
       </div>
+    </>
+  );
+}
+
+// =====================================================================
+// Récap de fin de semaine : samedi, dimanche et lundi, la semaine qui se termine / vient de se terminer.
+const finDeSemaine = (d = new Date()) => [6, 0, 1].includes(d.getDay());
+const semaineARecap = (d = new Date()) => iso(d.getDay() === 1 ? addDays(mondayOf(d), -7) : mondayOf(d));
+
+async function partagerTexte(text) {
+  if (Capacitor.isNativePlatform()) {
+    const { Share } = await import("@capacitor/share");
+    return Share.share({ text, dialogTitle: "Envoyer le récap" });
+  }
+  if (navigator.share) return navigator.share({ text });
+  await navigator.clipboard.writeText(text);
+  alert("Récap copié : collez-le dans WhatsApp, un SMS ou un mail.");
+}
+
+function RecapTab({ week, setWeek, employes, planning, pointages, config }) {
+  const r = buildWeekRecap({ mon: week, employes, planning, pointages, config });
+  const run = (fn) => fn().catch((e) => e?.name !== "AbortError" && alert("Impossible : " + (e?.message || e)));
+  return (
+    <>
+      <WeekNav week={week} setWeek={setWeek} />
+      {r.lignes.map((l) => (
+        <div key={l.id} className="card">
+          <div className="row-between">
+            <b>{nomComplet(l.employe)}</b>
+            <b className="gold">{fmtH(l.an.tot.min)}</b>
+          </div>
+          <div className="recap-days">
+            {l.days.map((d, i) => (
+              <div key={i} className={`recap-day ${dayMinutes(d) || d.abs ? "" : "off"}`}>
+                <small>{JOURS_COURTS[i]}</small>
+                {d.abs ? <span className="abs-pill" style={{ background: ABSENCES[d.abs]?.color, margin: 0 }}>{ABSENCES[d.abs]?.court}</span>
+                  : <b>{dayMinutes(d) ? fmtH(dayMinutes(d)) : "—"}</b>}
+              </div>
+            ))}
+          </div>
+          <p className="small muted">
+            Prévu {fmtH(l.prevu)}
+            {l.an.tot.min !== l.prevu && <> · écart <b className={l.an.tot.min > l.prevu ? "plus" : "minus"}>{l.an.tot.min > l.prevu ? "+" : ""}{fmtH(l.an.tot.min - l.prevu)}</b></>}
+            {l.hs > 0 && <> · dont <b>{fmtH(l.hs)}</b> d'heures sup</>}
+            {" "}· coût <b>{euro(l.an.tot.cout)}</b>
+            {!l.saisi && " · (planning, pas encore corrigé par le salarié)"}
+          </p>
+          {l.an.alertes.length > 0 && <div className="alert"><ul>{l.an.alertes.map((a, i) => <li key={i}>⚠ {a}</li>)}</ul></div>}
+        </div>
+      ))}
+      <div className="card row-between">
+        <b>Total de la semaine</b>
+        <span><b className="gold">{fmtH(r.total.min)}</b> · <b>{euro(r.total.cout)}</b></span>
+      </div>
+      <button className="primary-btn full" onClick={() => run(() => partagerTexte(weekRecapText(r)))}>💬 Envoyer le récap (WhatsApp, SMS…)</button>
+      <button className="primary-btn full mt alt" onClick={() => run(() => saveFile(weekRecapPdfBlob(r), weekRecapName(week)))}>📄 Récap en PDF</button>
+      <p className="muted small">Dans l'appli installée, le PDF du récap est aussi enregistré automatiquement chaque fin de semaine dans Documents / {FOLDER} / Recaps.</p>
     </>
   );
 }
