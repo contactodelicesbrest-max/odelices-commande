@@ -27,6 +27,7 @@ html, body { margin:0; background: var(--bg); }
 .emp-card.emp-ok { border-color: rgba(63,157,90,.6); }
 .emp-name { font-size: 19px; font-weight: 700; margin-bottom: 3px; }
 .badge { font-size: 12px; font-weight: 700; padding: 6px 10px; border-radius: 999px; white-space: nowrap; }
+.badge-neutral { background: var(--raised); color: var(--muted); }
 .badge-ok { background: var(--ok); color:#fff; } .badge-todo { background: rgba(232,162,48,.18); color: var(--gold); }
 .hours { background: var(--panel); border:1px solid var(--border); border-radius: 14px; overflow:hidden; margin: 12px 0; }
 .hours-head, .hours-row { display:grid; grid-template-columns: 70px 1fr 1fr 62px; gap: 6px; align-items:center; padding: 8px 10px; }

@@ -38,11 +38,19 @@ export const del = (path) => remove(ref(db, p(path)));
 /** Remplit la base avec le planning Excel de novembre si elle est vide. */
 export async function seedIfEmpty() {
   const existing = await read("employes");
-  if (existing) return;
+  if (existing) {
+    // Une seule fois : Baran KOPAR est le gérant -> hors paie (modifiable ensuite dans Salariés)
+    const cfg = (await read("config")) || {};
+    if (!cfg.migGerant) {
+      if (existing.KOPAR_BARAN && existing.KOPAR_BARAN.horsPaie === undefined) await write("employes/KOPAR_BARAN/horsPaie", true);
+      await patch("config", { migGerant: true });
+    }
+    return;
+  }
   const employes = {};
   SEED_EMPLOYES.forEach(({ id, ...e }) => (employes[id] = e));
   await write("employes", employes);
   await write("planning", SEED_PLANNING);
   const cfg = await read("config");
-  if (!cfg) await write("config", { pinGerant: "1234" });
+  if (!cfg) await write("config", { pinGerant: "1234", migGerant: true });
 }

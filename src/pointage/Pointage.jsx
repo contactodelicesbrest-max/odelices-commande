@@ -205,7 +205,8 @@ function Home({ ym, setYm, employes, monthData, onPick, onGerant }) {
                   {signe ? `Signé · ${fmtH(sg.minutes || 0)}` : `Prévu : ${fmtH(prevu)}`}
                 </div>
               </div>
-              <span className={`badge ${signe ? "badge-ok" : "badge-todo"}`}>{signe ? "✓ Signé" : "À signer"}</span>
+              {e.horsPaie && !signe ? <span className="badge badge-neutral">Gérant</span>
+                : <span className={`badge ${signe ? "badge-ok" : "badge-todo"}`}>{signe ? "✓ Signé" : "À signer"}</span>}
             </button>
           );
         })}
